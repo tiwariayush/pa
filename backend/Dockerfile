@@ -14,12 +14,15 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 
 # Install Python dependencies
-COPY requirements.txt .
+# When Render builds this image, the Docker build context is the repo root,
+# so we need to reference files from the backend directory explicitly.
+COPY backend/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
-COPY . .
+# Copy only the backend source into the image workdir
+COPY backend/ .
 
 # Create non-root user for security
 RUN adduser --disabled-password --gecos '' appuser

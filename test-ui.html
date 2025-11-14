@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Personal Assistant - Test Interface</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+        
+        .header h1 {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            font-size: 18px;
+            opacity: 0.9;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #10b981;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .status-dot.error {
+            background: #ef4444;
+        }
+        
+        h2 {
+            color: #1e293b;
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+        
+        .test-section {
+            margin-bottom: 30px;
+        }
+        
+        .test-section h3 {
+            color: #475569;
+            font-size: 18px;
+            margin-bottom: 15px;
+        }
+        
+        button {
+            background: #6366f1;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        
+        button:hover {
+            background: #4f46e5;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+        }
+        
+        button:disabled {
+            background: #cbd5e1;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .result {
+            background: #f8fafc;
+            border-left: 4px solid #6366f1;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 15px;
+            font-family: monospace;
+            font-size: 14px;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .result.error {
+            border-left-color: #ef4444;
+            background: #fef2f2;
+        }
+        
+        .result.success {
+            border-left-color: #10b981;
+            background: #f0fdf4;
+        }
+        
+        input, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 16px;
+            margin-bottom: 15px;
+            font-family: inherit;
+        }
+        
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: #6366f1;
+        }
+        
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 Personal Assistant</h1>
+            <p>AI-Powered Life Management System - Test Interface</p>
+        </div>
+        
+        <div class="card">
+            <div class="status">
+                <div class="status-dot" id="backend-status"></div>
+                <span id="backend-text">Checking backend...</span>
+            </div>
+            
+            <h2>System Status</h2>
+            <div id="system-status"></div>
+        </div>
+        
+        <div class="card">
+            <h2>🎤 Voice Capture Test</h2>
+            <div class="test-section">
+                <h3>Simulate Voice Input</h3>
+                <textarea id="voice-input" placeholder="Type your tasks here, e.g., 'I need to book vaccines for the baby, schedule a meeting with the accountant, and spend 2 hours on marketing'"></textarea>
+                <button onclick="processVoiceCapture()">Process with AI</button>
+            </div>
+            <div id="voice-result"></div>
+        </div>
+        
+        <div class="card">
+            <h2>💡 "What Should I Do Now?" Test</h2>
+            <div class="test-section">
+                <button onclick="getRecommendations()">Get AI Recommendations</button>
+            </div>
+            <div id="recommendations-result"></div>
+        </div>
+        
+        <div class="card">
+            <h2>📋 Task Management</h2>
+            <div class="test-section">
+                <h3>Create Task</h3>
+                <input type="text" id="task-title" placeholder="Task title">
+                <button onclick="createTask()">Create Task</button>
+                <button onclick="listTasks()">List All Tasks</button>
+            </div>
+            <div id="task-result"></div>
+        </div>
+    </div>
+    
+    <script>
+        const API_BASE = 'http://localhost:8000';
+        let authToken = null;
+        
+        // Check backend health on load
+        window.onload = async () => {
+            try {
+                const response = await fetch(`${API_BASE}/health`);
+                const data = await response.json();
+                
+                if (data.status === 'healthy') {
+                    document.getElementById('backend-status').classList.remove('error');
+                    document.getElementById('backend-text').textContent = 'Backend API: ✅ Connected';
+                    document.getElementById('system-status').innerHTML = `
+                        <div style="color: #10b981; font-weight: 600;">✅ All systems operational!</div>
+                        <div style="margin-top: 10px; color: #64748b;">
+                            <div>🗄️ PostgreSQL: Running</div>
+                            <div>🔴 Redis: Running</div>
+                            <div>🚀 FastAPI: Running</div>
+                            <div>🧠 AI Agents: Ready</div>
+                        </div>
+                    `;
+                } else {
+                    throw new Error('Backend not healthy');
+                }
+            } catch (error) {
+                document.getElementById('backend-status').classList.add('error');
+                document.getElementById('backend-text').textContent = 'Backend API: ❌ Not connected';
+                document.getElementById('system-status').innerHTML = `
+                    <div style="color: #ef4444;">Backend is not responding. Make sure Docker containers are running.</div>
+                `;
+            }
+        };
+        
+        async function processVoiceCapture() {
+            const input = document.getElementById('voice-input').value;
+            const resultDiv = document.getElementById('voice-result');
+            
+            if (!input.trim()) {
+                resultDiv.innerHTML = '<div class="result error">Please enter some text to process</div>';
+                return;
+            }
+            
+            resultDiv.innerHTML = '<div class="result">Processing with AI... <span class="loading"></span></div>';
+            
+            try {
+                // Use the test endpoint that doesn't require auth
+                const response = await fetch(`${API_BASE}/test/voice-parse`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        transcript: input,
+                        location: 'home',
+                        context: {}
+                    })
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || 'API request failed');
+                }
+                
+                const data = await response.json();
+                
+                if (!data.tasks || data.tasks.length === 0) {
+                    resultDiv.innerHTML = '<div class="result error">No tasks were parsed. Try being more specific.</div>';
+                    return;
+                }
+                
+                resultDiv.innerHTML = `
+                    <div class="result success">
+                        <strong>✅ AI Parsed ${data.tasks.length} tasks:</strong><br><br>
+                        ${data.tasks.map((task, i) => `
+                            <div style="margin-bottom: 15px; padding: 10px; background: white; border-radius: 4px;">
+                                <strong>${i + 1}. ${task.title}</strong><br>
+                                <span style="color: #64748b;">Domain: ${task.domain}</span><br>
+                                <span style="color: #64748b;">Priority: ${task.priorityHint}</span><br>
+                                ${task.estimatedDurationMin ? `<span style="color: #64748b;">Duration: ${task.estimatedDurationMin} min</span><br>` : ''}
+                                ${task.subtasks && task.subtasks.length > 0 ? `<span style="color: #64748b;">Subtasks: ${task.subtasks.join(', ')}</span>` : ''}
+                            </div>
+                        `).join('')}
+                        <br><strong>Summary:</strong> ${data.summary || 'N/A'}
+                        <br><strong>Confidence:</strong> ${Math.round(data.confidenceScore * 100)}%
+                    </div>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="result error">❌ Error: ${error.message}</div>`;
+            }
+        }
+        
+        async function getRecommendations() {
+            const resultDiv = document.getElementById('recommendations-result');
+            resultDiv.innerHTML = '<div class="result">Getting recommendations... <span class="loading"></span></div>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/recommendations/what-now`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': authToken ? `Bearer ${authToken}` : ''
+                    },
+                    body: JSON.stringify({
+                        currentTime: new Date().toISOString(),
+                        availableDurationMin: 45,
+                        energyLevel: 'high',
+                        location: 'home'
+                    })
+                });
+                
+                if (response.status === 401) {
+                    resultDiv.innerHTML = '<div class="result error">⚠️ Authentication required</div>';
+                    return;
+                }
+                
+                const data = await response.json();
+                resultDiv.innerHTML = `<div class="result success">✅ Recommendations ready! (Auth needed for full data)</div>`;
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="result error">❌ Error: ${error.message}</div>`;
+            }
+        }
+        
+        async function createTask() {
+            const title = document.getElementById('task-title').value;
+            const resultDiv = document.getElementById('task-result');
+            
+            if (!title.trim()) {
+                resultDiv.innerHTML = '<div class="result error">Please enter a task title</div>';
+                return;
+            }
+            
+            resultDiv.innerHTML = '<div class="result">Creating task... <span class="loading"></span></div>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/tasks`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': authToken ? `Bearer ${authToken}` : ''
+                    },
+                    body: JSON.stringify({
+                        title: title,
+                        domain: 'personal',
+                        priority: 'medium',
+                        requiresCalendarBlock: false
+                    })
+                });
+                
+                if (response.status === 401) {
+                    resultDiv.innerHTML = '<div class="result error">⚠️ Authentication required</div>';
+                    return;
+                }
+                
+                const data = await response.json();
+                resultDiv.innerHTML = `<div class="result success">✅ Task created successfully!</div>`;
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="result error">❌ Error: ${error.message}</div>`;
+            }
+        }
+        
+        async function listTasks() {
+            const resultDiv = document.getElementById('task-result');
+            resultDiv.innerHTML = '<div class="result">Loading tasks... <span class="loading"></span></div>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/tasks`, {
+                    headers: {
+                        'Authorization': authToken ? `Bearer ${authToken}` : ''
+                    }
+                });
+                
+                if (response.status === 401) {
+                    resultDiv.innerHTML = '<div class="result error">⚠️ Authentication required</div>';
+                    return;
+                }
+                
+                const data = await response.json();
+                resultDiv.innerHTML = `<div class="result success">✅ Found ${data.totalCount} tasks</div>`;
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="result error">❌ Error: ${error.message}</div>`;
+            }
+        }
+    </script>
+</body>
+</html>

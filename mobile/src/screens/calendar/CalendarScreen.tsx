@@ -31,7 +31,14 @@ const CalendarScreen: React.FC = () => {
         const data = await apiService.getCalendarEvents(start, end);
         setEvents(data);
       } catch (e: any) {
-        setError(e.message || 'Failed to load calendar events');
+        // Surface more helpful error details when available
+        const message =
+          e?.response?.data?.detail ||
+          e?.response?.data?.message ||
+          e?.message ||
+          'Failed to load calendar events';
+        console.log('Calendar load error', e);
+        setError(message);
       } finally {
         if (showLoader) {
           setLoading(false);
@@ -52,7 +59,13 @@ const CalendarScreen: React.FC = () => {
       await apiService.syncCalendar();
       await loadEvents(false);
     } catch (e: any) {
-      setError(e.message || 'Failed to sync calendar');
+      const message =
+        e?.response?.data?.detail ||
+        e?.response?.data?.message ||
+        e?.message ||
+        'Failed to sync calendar';
+      console.log('Calendar sync error', e);
+      setError(message);
     } finally {
       setSyncing(false);
     }

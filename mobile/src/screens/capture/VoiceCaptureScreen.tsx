@@ -7,6 +7,9 @@ import {
   Alert,
   TouchableOpacity,
   TextInput,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system';
@@ -130,75 +133,91 @@ const VoiceCaptureScreen: React.FC = () => {
 
   return (
     <Screen>
-      <View style={styles.container}>
-        <Card>
-          <Text style={styles.title}>Capture what’s on your mind</Text>
-          <Text style={styles.subtitle}>
-            Tap the mic and speak freely. I’ll turn your thoughts into structured tasks you can
-            review before saving.
-          </Text>
-
-          <View style={styles.micContainer}>
-            <TouchableOpacity
-              style={[styles.micButton, isRecording && styles.micButtonRecording]}
-              onPress={handleMicPress}
-              activeOpacity={0.9}
-              disabled={isProcessing}
-            >
-              <MaterialIcons
-                name={isRecording ? 'stop' : 'mic'}
-                size={32}
-                color="#FFFFFF"
-              />
-            </TouchableOpacity>
-
-            <Text style={styles.micLabel}>
-              {isRecording
-                ? 'Listening… tap to finish'
-                : 'Tap to start recording'}
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView
+          style={styles.flex}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Card>
+            <Text style={styles.title}>Capture what’s on your mind</Text>
+            <Text style={styles.subtitle}>
+              Tap the mic and speak freely. I’ll turn your thoughts into structured tasks you can
+              review before saving.
             </Text>
-          </View>
 
-          {isProcessing && (
-            <View style={styles.processingRow}>
-              <ActivityIndicator size="small" color={theme.colors.primary} />
-              <Text style={styles.processingText}>Processing your capture…</Text>
+            <View style={styles.micContainer}>
+              <TouchableOpacity
+                style={[styles.micButton, isRecording && styles.micButtonRecording]}
+                onPress={handleMicPress}
+                activeOpacity={0.9}
+                disabled={isProcessing}
+              >
+                <MaterialIcons
+                  name={isRecording ? 'stop' : 'mic'}
+                  size={32}
+                  color="#FFFFFF"
+                />
+              </TouchableOpacity>
+
+              <Text style={styles.micLabel}>
+                {isRecording
+                  ? 'Listening… tap to finish'
+                  : 'Tap to start recording'}
+              </Text>
             </View>
-          )}
-        </Card>
 
-        <Card style={styles.textCard}>
-          <Text style={styles.tipTitle}>Prefer typing?</Text>
-          <Text style={styles.tipText}>
-            You can also type what’s on your mind and I’ll parse it into tasks.
-          </Text>
-          <TextInput
-            style={styles.textInput}
-            placeholder="E.g. Tomorrow I need to prepare slides for Monday’s client meeting and book a pediatrician appointment next week."
-            value={manualText}
-            onChangeText={setManualText}
-            multiline
-            numberOfLines={4}
-          />
+            {isProcessing && (
+              <View style={styles.processingRow}>
+                <ActivityIndicator size="small" color={theme.colors.primary} />
+                <Text style={styles.processingText}>Processing your capture…</Text>
+              </View>
+            )}
+          </Card>
+
+          <Card style={styles.textCard}>
+            <Text style={styles.tipTitle}>Prefer typing?</Text>
+            <Text style={styles.tipText}>
+              You can also type what’s on your mind and I’ll parse it into tasks.
+            </Text>
+            <TextInput
+              style={styles.textInput}
+              placeholder="E.g. Tomorrow I need to prepare slides for Monday’s client meeting and book a pediatrician appointment next week."
+              value={manualText}
+              onChangeText={setManualText}
+              multiline
+              numberOfLines={4}
+            />
+            <PrimaryButton
+              label={isSubmittingText ? 'Capturing…' : 'Capture from text'}
+              onPress={handleTextSubmit}
+              loading={isSubmittingText}
+            />
+          </Card>
+
           <PrimaryButton
-            label={isSubmittingText ? 'Capturing…' : 'Capture from text'}
-            onPress={handleTextSubmit}
-            loading={isSubmittingText}
+            label="Skip for now"
+            onPress={() => navigation.goBack()}
+            style={styles.skipButton}
+            disabled={isRecording || isProcessing}
           />
-        </Card>
-
-        <PrimaryButton
-          label="Skip for now"
-          onPress={() => navigation.goBack()}
-          style={styles.skipButton}
-          disabled={isRecording || isProcessing}
-        />
-      </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </Screen>
   );
 };
 
 const styles = StyleSheet.create({
+  flex: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingVertical: spacing.lg,
+  },
   container: {
     flex: 1,
     paddingVertical: spacing.lg,

@@ -264,18 +264,49 @@ class TaskService:
             limit=100,
             offset=0
         )
-        
+
+        # Prefer tasks with due dates in the near / medium future.
+        # We don't want to suggest things that are very far out unless
+        # there is nothing more immediate to work on.
+        today = current_time.date()
+        NEAR_DAYS = 7      # due within a week
+        FAR_FUTURE_DAYS = 30  # consider >30 days as "far future"
+
+        near_tasks: List[Task] = []
+        medium_tasks: List[Task] = []
+        far_future_tasks: List[Task] = []
+
+        for t in tasks:
+            if t.due_date is None:
+                # No due date: treat as medium term
+                medium_tasks.append(t)
+                continue
+
+            days_until = (t.due_date - today).days
+            if days_until <= NEAR_DAYS:
+                near_tasks.append(t)
+            elif days_until <= FAR_FUTURE_DAYS:
+                medium_tasks.append(t)
+            else:
+                far_future_tasks.append(t)
+
+        # Build the pool in priority order: near → medium → far future (only if needed)
+        candidate_tasks: List[Task] = near_tasks or medium_tasks or far_future_tasks
+
         # Filter by duration if specified
         if max_duration:
-            tasks = [
-                t for t in tasks 
+            candidate_tasks = [
+                t for t in candidate_tasks 
                 if not t.estimated_duration_min or t.estimated_duration_min <= max_duration
             ]
         
-        # Sort by priority score (descending)
-        tasks.sort(key=lambda t: t.priority_score, reverse=True)
+        # Sort by urgency first, then priority score (both descending)
+        candidate_tasks.sort(
+            key=lambda t: (t.urgency, t.priority_score),
+            reverse=True,
+        )
         
-        return tasks[:10]  # Return top 10 candidates
+        return candidate_tasks[:10]  # Return top 10 candidates
     
     async def attach_research_results(
         self, 

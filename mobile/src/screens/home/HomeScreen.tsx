@@ -2,8 +2,8 @@
  * Home Screen - Simplified version without react-native-paper
  */
 
-import React, { useCallback } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import React from 'react';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 
 import { useAuth, useAuthStore } from '../../stores/AuthStore';
@@ -23,18 +23,6 @@ const HomeScreen: React.FC = () => {
 
   const firstName = user?.name?.split(' ')[0] || 'there';
 
-   const logoutWithConfirm = useCallback(() => {
-    Alert.alert(
-      'Log out',
-      'Are you sure you want to log out?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Log out', style: 'destructive', onPress: () => logout() },
-      ],
-      { cancelable: true }
-    );
-  }, [logout]);
-
   return (
     <Screen>
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -43,7 +31,7 @@ const HomeScreen: React.FC = () => {
             <Text style={styles.greeting}>Good morning, {firstName} 👋</Text>
             <Text style={styles.subtitle}>Let’s make the next hour count.</Text>
           </View>
-          <TouchableOpacity onPress={logoutWithConfirm}>
+          <TouchableOpacity onPress={logout}>
             <Text style={styles.logoutText}>Log out</Text>
           </TouchableOpacity>
         </View>

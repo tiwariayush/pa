@@ -1,17 +1,33 @@
 export const theme = {
+  /**
+   * Core theme palette
+   * Inspired by a calm, data‑dashboard aesthetic:
+   * - Warm, paper‑like backgrounds
+   * - Soft card surfaces with subtle outlines
+   * - Dark, inky text for strong contrast
+   */
   colors: {
-    primary: '#6366F1', // Indigo
-    secondary: '#EC4899', // Pink
-    tertiary: '#10B981', // Emerald
-    surface: '#FFFFFF',
-    surfaceVariant: '#F8FAFC',
-    background: '#FFFFFF',
-    error: '#EF4444',
-    onSurface: '#1E293B',
-    onSurfaceVariant: '#64748B',
-    outline: '#CBD5E1',
+    // Primary accent – used for CTAs and key highlights
+    primary: '#1F2937', // Inky charcoal
+    secondary: '#A1623B', // Warm accent (copper)
+    tertiary: '#6B7280', // Muted accent for secondary UI
+
+    // Surfaces & background
+    background: '#FAFAF9', // Light chalk color
+    surface: '#FFFFFF', // Card / panel background
+    surfaceVariant: '#F7F7F5', // Muted panels / headers
+
+    // Semantic
+    error: '#B91C1C',
+
+    // Text & borders
+    onSurface: '#1C1917', // Primary text
+    onSurfaceVariant: '#4B5563', // Secondary text
+    outline: '#E8E8E6', // Hairline borders / dividers (lighter for chalk background)
   },
-  roundness: 12,
+
+  // Slightly tighter radius to feel more "dashboard" and less "mobile‑card"
+  roundness: 10,
 };
 
 export const colors = {
@@ -51,39 +67,46 @@ export const colors = {
   error: '#EF4444',
   info: '#3B82F6',
   
-  // Neutral colors
+  // Neutral colors – adjusted for lighter chalk background
   gray: {
-    50: '#F8FAFC',
-    100: '#F1F5F9',
-    200: '#E2E8F0',
-    300: '#CBD5E1',
-    400: '#94A3B8',
-    500: '#64748B',
-    600: '#475569',
-    700: '#334155',
-    800: '#1E293B',
-    900: '#0F172A',
+    50: '#FAFAF9',
+    100: '#F5F5F3',
+    200: '#E8E8E6',
+    300: '#D4D4D1',
+    400: '#A3A3A0',
+    500: '#73736F',
+    600: '#52524E',
+    700: '#40403C',
+    800: '#2E2E2A',
+    900: '#1C1C19',
   },
 };
 
 export const spacing = {
   xs: 4,
   sm: 8,
-  md: 16,
-  lg: 24,
-  xl: 32,
-  xxl: 48,
+  md: 14,
+  lg: 22,
+  xl: 30,
+  xxl: 44,
 };
 
 export const typography = {
+  fontFamily: {
+    regular: 'SpaceGrotesk-Regular',
+    light: 'SpaceGrotesk-Light',
+    medium: 'SpaceGrotesk-Medium',
+    semibold: 'SpaceGrotesk-SemiBold',
+    bold: 'SpaceGrotesk-Bold',
+  },
   sizes: {
-    xs: 12,
-    sm: 14,
-    md: 16,
-    lg: 18,
-    xl: 20,
-    xxl: 24,
-    xxxl: 32,
+    xs: 11,
+    sm: 13,
+    md: 15,
+    lg: 17,
+    xl: 19,
+    xxl: 23,
+    xxxl: 30,
   },
   weights: {
     regular: '400' as const,

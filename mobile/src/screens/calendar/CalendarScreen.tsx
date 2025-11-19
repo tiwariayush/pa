@@ -163,10 +163,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: typography.sizes.md,
     fontWeight: typography.weights.semibold,
-    color: colors.gray[900],
+    fontFamily: typography.fontFamily.semibold,
+    color: theme.colors.onSurface,
   },
   syncText: {
     fontSize: typography.sizes.sm,
+    fontFamily: typography.fontFamily.regular,
     color: theme.colors.primary,
   },
   syncTextDisabled: {
@@ -180,7 +182,8 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: spacing.md,
     fontSize: typography.sizes.sm,
-    color: colors.gray[600],
+    fontFamily: typography.fontFamily.regular,
+    color: theme.colors.onSurfaceVariant,
   },
   errorBanner: {
     padding: spacing.sm,
@@ -190,6 +193,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: typography.sizes.sm,
+    fontFamily: typography.fontFamily.regular,
     color: colors.error,
   },
   eventCard: {
@@ -198,15 +202,18 @@ const styles = StyleSheet.create({
   eventTitle: {
     fontSize: typography.sizes.md,
     fontWeight: typography.weights.semibold,
-    color: colors.gray[900],
+    fontFamily: typography.fontFamily.semibold,
+    color: theme.colors.onSurface,
   },
   eventDescription: {
     fontSize: typography.sizes.sm,
-    color: colors.gray[700],
+    fontFamily: typography.fontFamily.regular,
+    color: theme.colors.onSurfaceVariant,
     marginTop: spacing.xs,
   },
   eventMeta: {
     fontSize: typography.sizes.xs,
+    fontFamily: typography.fontFamily.regular,
     color: colors.gray[500],
     marginTop: spacing.xs,
   },
@@ -216,6 +223,7 @@ const styles = StyleSheet.create({
   },
   addTaskText: {
     fontSize: typography.sizes.xs,
+    fontFamily: typography.fontFamily.medium,
     color: theme.colors.primary,
     fontWeight: typography.weights.medium,
   },

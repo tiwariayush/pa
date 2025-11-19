@@ -65,7 +65,7 @@ const HomeScreen: React.FC = () => {
               <Text style={[styles.statNumber, styles.overdue]}>0</Text>
               <Text style={styles.statLabel}>Overdue</Text>
             </View>
-            <View style={styles.statItem}>
+            <View style={[styles.statItem, styles.statItemEmphasis]}>
               <Text style={[styles.statNumber, styles.dueToday]}>0</Text>
               <Text style={styles.statLabel}>Due today</Text>
             </View>
@@ -113,15 +113,18 @@ const styles = StyleSheet.create({
   greeting: {
     fontSize: typography.sizes.xxl,
     fontWeight: typography.weights.semibold,
-    color: colors.gray[900],
+    fontFamily: typography.fontFamily.semibold,
+    color: theme.colors.onSurface,
   },
   subtitle: {
     fontSize: typography.sizes.sm,
-    color: colors.gray[600],
+    fontFamily: typography.fontFamily.regular,
+    color: theme.colors.onSurfaceVariant,
     marginTop: spacing.xs,
   },
   logoutText: {
     fontSize: typography.sizes.sm,
+    fontFamily: typography.fontFamily.regular,
     color: colors.gray[500],
   },
   whatNowCard: {
@@ -144,33 +147,46 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: typography.sizes.lg,
     fontWeight: typography.weights.semibold,
+    fontFamily: typography.fontFamily.semibold,
     color: colors.gray[900],
   },
   cardSubtitle: {
     fontSize: typography.sizes.sm,
+    fontFamily: typography.fontFamily.regular,
     color: colors.gray[600],
     marginTop: spacing.xs,
   },
   sectionTitle: {
     fontSize: typography.sizes.md,
     fontWeight: typography.weights.semibold,
-    color: colors.gray[900],
+    fontFamily: typography.fontFamily.semibold,
+    color: theme.colors.onSurface,
     marginBottom: spacing.md,
   },
   statsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'space-between',
     marginTop: spacing.md,
   },
   statItem: {
-    alignItems: 'center',
+    alignItems: 'flex-start',
+  },
+  statItemEmphasis: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: theme.roundness / 2,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: theme.colors.outline,
+    backgroundColor: theme.colors.surfaceVariant,
   },
   statNumber: {
     fontSize: typography.sizes.xxl,
     fontWeight: typography.weights.bold,
+    fontFamily: typography.fontFamily.bold,
   },
   statLabel: {
     fontSize: typography.sizes.xs,
+    fontFamily: typography.fontFamily.regular,
     color: colors.gray[600],
     marginTop: spacing.xs,
   },

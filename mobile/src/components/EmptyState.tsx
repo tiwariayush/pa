@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, ViewStyle } from 'react-native';
-import { colors, spacing, typography } from '../theme/theme';
+import { colors, spacing, typography, theme } from '../theme/theme';
 
 interface EmptyStateProps {
   icon?: string;
@@ -42,13 +42,15 @@ const styles = StyleSheet.create({
   title: {
     fontSize: typography.sizes.lg,
     fontWeight: typography.weights.semibold,
-    color: colors.gray[900],
+    fontFamily: typography.fontFamily.semibold,
+    color: theme.colors.onSurface,
     marginBottom: spacing.sm,
     textAlign: 'center',
   },
   message: {
     fontSize: typography.sizes.sm,
-    color: colors.gray[600],
+    fontFamily: typography.fontFamily.regular,
+    color: theme.colors.onSurfaceVariant,
     textAlign: 'center',
   },
 });

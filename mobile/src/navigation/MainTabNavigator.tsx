@@ -8,7 +8,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialIcons } from '@expo/vector-icons';
 
 import { MainTabParamList } from '../types';
-import { colors, theme } from '../theme/theme';
+import { colors, theme, typography } from '../theme/theme';
 
 // Import screens
 import HomeScreen from '../screens/home/HomeScreen';
@@ -46,20 +46,34 @@ const MainTabNavigator: React.FC = () => {
               iconName = 'help';
           }
 
-          return <MaterialIcons name={iconName} size={size} color={color} />;
+          const iconSize = focused ? size + 2 : size;
+
+          return (
+            <React.Fragment>
+              <MaterialIcons
+                name={iconName}
+                size={iconSize}
+                color={color}
+              />
+            </React.Fragment>
+          );
         },
         tabBarActiveTintColor: theme.colors.primary,
         tabBarInactiveTintColor: colors.gray[500],
         tabBarStyle: {
           backgroundColor: theme.colors.surface,
-          borderTopColor: colors.gray[200],
-          paddingBottom: 8,
-          paddingTop: 8,
-          height: 80,
+          borderTopColor: theme.colors.outline,
+          borderTopWidth: 1,
+          paddingBottom: 6,
+          paddingTop: 6,
+          height: 74,
         },
         tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '500',
+          fontSize: typography.sizes.xs,
+          fontWeight: typography.weights.medium,
+          fontFamily: typography.fontFamily.medium,
+          letterSpacing: 0.6,
+          textTransform: 'uppercase',
         },
         headerStyle: {
           backgroundColor: theme.colors.surface,
@@ -69,9 +83,11 @@ const MainTabNavigator: React.FC = () => {
           borderBottomColor: colors.gray[200],
         },
         headerTitleStyle: {
-          fontSize: 20,
-          fontWeight: '600',
-          color: colors.gray[900],
+          fontSize: typography.sizes.lg,
+          fontWeight: typography.weights.semibold,
+          fontFamily: typography.fontFamily.semibold,
+          color: theme.colors.onSurface,
+          letterSpacing: 0.4,
         },
       })}
     >

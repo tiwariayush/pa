@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   ViewStyle,
 } from 'react-native';
-import { colors, spacing, typography, shadows, theme } from '../theme/theme';
+import { spacing, typography, shadows, theme } from '../theme/theme';
 
 interface PrimaryButtonProps {
   label: string;
@@ -57,7 +57,8 @@ const styles = StyleSheet.create({
     borderRadius: theme.roundness,
     alignItems: 'center',
     justifyContent: 'center',
-    ...shadows.md,
+    // Softer elevation to match the flatter dashboard aesthetic
+    ...shadows.sm,
   },
   buttonDisabled: {
     opacity: 0.6,
@@ -68,6 +69,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: typography.sizes.md,
     fontWeight: typography.weights.semibold,
+    fontFamily: typography.fontFamily.semibold,
   },
 });
 

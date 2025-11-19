@@ -8,7 +8,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialIcons } from '@expo/vector-icons';
 
 import { MainTabParamList } from '../types';
-import { colors, theme, typography } from '../theme/theme';
+import { colors, typography, useTheme } from '../theme/theme';
 
 // Import screens
 import HomeScreen from '../screens/home/HomeScreen';
@@ -16,10 +16,13 @@ import InboxScreen from '../screens/inbox/InboxScreen';
 import TasksScreen from '../screens/tasks/TasksScreen';
 import CalendarScreen from '../screens/calendar/CalendarScreen';
 import AssistantScreen from '../screens/assistant/AssistantScreen';
+import SettingsScreen from '../screens/settings/SettingsScreen';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
 const MainTabNavigator: React.FC = () => {
+  const theme = useTheme();
+  
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -41,6 +44,9 @@ const MainTabNavigator: React.FC = () => {
               break;
             case 'Assistant':
               iconName = 'chat';
+              break;
+            case 'Settings':
+              iconName = 'settings';
               break;
             default:
               iconName = 'help';
@@ -71,7 +77,7 @@ const MainTabNavigator: React.FC = () => {
         tabBarLabelStyle: {
           fontSize: typography.sizes.xs,
           fontWeight: typography.weights.medium,
-          fontFamily: typography.fontFamily.medium,
+          fontFamily: theme.typography.fontFamily.medium,
           letterSpacing: 0.6,
           textTransform: 'uppercase',
         },
@@ -85,7 +91,7 @@ const MainTabNavigator: React.FC = () => {
         headerTitleStyle: {
           fontSize: typography.sizes.lg,
           fontWeight: typography.weights.semibold,
-          fontFamily: typography.fontFamily.semibold,
+          fontFamily: theme.typography.fontFamily.semibold,
           color: theme.colors.onSurface,
           letterSpacing: 0.4,
         },
@@ -134,6 +140,15 @@ const MainTabNavigator: React.FC = () => {
         options={{
           title: 'Assistant',
           headerTitle: 'AI Assistant',
+        }}
+      />
+      
+      <Tab.Screen 
+        name="Settings" 
+        component={SettingsScreen}
+        options={{
+          title: 'Settings',
+          headerTitle: 'Settings',
         }}
       />
     </Tab.Navigator>

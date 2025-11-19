@@ -171,6 +171,7 @@ export type MainTabParamList = {
   Tasks: undefined;
   Calendar: undefined;
   Assistant: undefined;
+  Settings: undefined;
 };
 
 // Component props

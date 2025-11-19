@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, ViewStyle } from 'react-native';
-import { colors, spacing, typography, theme } from '../theme/theme';
+import { colors, spacing, typography, theme, useTheme } from '../theme/theme';
 
 interface EmptyStateProps {
   icon?: string;
@@ -19,11 +19,17 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   message,
   style,
 }) => {
+  const dynamicTheme = useTheme();
+  
   return (
     <View style={[styles.container, style]}>
       <Text style={styles.icon}>{icon}</Text>
-      <Text style={styles.title}>{title}</Text>
-      <Text style={styles.message}>{message}</Text>
+      <Text style={[styles.title, { fontFamily: dynamicTheme.typography.fontFamily.semibold }]}>
+        {title}
+      </Text>
+      <Text style={[styles.message, { fontFamily: dynamicTheme.typography.fontFamily.regular }]}>
+        {message}
+      </Text>
     </View>
   );
 };
@@ -42,15 +48,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: typography.sizes.lg,
     fontWeight: typography.weights.semibold,
-    fontFamily: typography.fontFamily.semibold,
-    color: theme.colors.onSurface,
+    color: colors.gray[900],
     marginBottom: spacing.sm,
     textAlign: 'center',
   },
   message: {
     fontSize: typography.sizes.sm,
-    fontFamily: typography.fontFamily.regular,
-    color: theme.colors.onSurfaceVariant,
+    color: colors.gray[600],
     textAlign: 'center',
   },
 });

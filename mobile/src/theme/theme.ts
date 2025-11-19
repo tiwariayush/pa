@@ -1,33 +1,73 @@
+import { useThemeStore } from '../stores/ThemeStore';
+import { fontThemes, backgroundThemes } from './themes';
+
+// Base theme structure - colors that don't change
+const baseTheme = {
+  // Primary accent – used for CTAs and key highlights
+  primary: '#1F2937', // Inky charcoal
+  secondary: '#A1623B', // Warm accent (copper)
+  tertiary: '#6B7280', // Muted accent for secondary UI
+
+  // Semantic
+  error: '#B91C1C',
+
+  // Text colors (don't change with background)
+  onSurface: '#1C1917', // Primary text
+  onSurfaceVariant: '#4B5563', // Secondary text
+};
+
+// Default theme (for static imports)
 export const theme = {
-  /**
-   * Core theme palette
-   * Inspired by a calm, data‑dashboard aesthetic:
-   * - Warm, paper‑like backgrounds
-   * - Soft card surfaces with subtle outlines
-   * - Dark, inky text for strong contrast
-   */
   colors: {
-    // Primary accent – used for CTAs and key highlights
-    primary: '#1F2937', // Inky charcoal
-    secondary: '#A1623B', // Warm accent (copper)
-    tertiary: '#6B7280', // Muted accent for secondary UI
-
-    // Surfaces & background
-    background: '#FAFAF9', // Light chalk color
-    surface: '#FFFFFF', // Card / panel background
-    surfaceVariant: '#F7F7F5', // Muted panels / headers
-
-    // Semantic
-    error: '#B91C1C',
-
-    // Text & borders
-    onSurface: '#1C1917', // Primary text
-    onSurfaceVariant: '#4B5563', // Secondary text
-    outline: '#E8E8E6', // Hairline borders / dividers (lighter for chalk background)
+    ...baseTheme,
+    // Surfaces & background - default to chalk
+    background: '#FAFAF9',
+    surface: '#FFFFFF',
+    surfaceVariant: '#F7F7F5',
+    outline: '#E8E8E6',
   },
-
-  // Slightly tighter radius to feel more "dashboard" and less "mobile‑card"
   roundness: 10,
+};
+
+// Typography sizes and weights (don't change with theme)
+const typographySizes = {
+  xs: 11,
+  sm: 13,
+  md: 15,
+  lg: 17,
+  xl: 19,
+  xxl: 23,
+  xxxl: 30,
+};
+
+const typographyWeights = {
+  regular: '400' as const,
+  medium: '500' as const,
+  semibold: '600' as const,
+  bold: '700' as const,
+};
+
+// Hook to get dynamic theme based on user selection
+export const useTheme = () => {
+  const { currentTheme } = useThemeStore();
+  const bgTheme = backgroundThemes[currentTheme.background];
+  const fontTheme = fontThemes[currentTheme.font];
+
+  return {
+    colors: {
+      ...baseTheme,
+      background: bgTheme.colors.background,
+      surface: bgTheme.colors.surface,
+      surfaceVariant: bgTheme.colors.surfaceVariant,
+      outline: bgTheme.colors.outline,
+    },
+    roundness: 10,
+    typography: {
+      fontFamily: fontTheme.fontFamily,
+      sizes: typographySizes,
+      weights: typographyWeights,
+    },
+  };
 };
 
 export const colors = {
@@ -99,21 +139,8 @@ export const typography = {
     semibold: 'SpaceGrotesk-SemiBold',
     bold: 'SpaceGrotesk-Bold',
   },
-  sizes: {
-    xs: 11,
-    sm: 13,
-    md: 15,
-    lg: 17,
-    xl: 19,
-    xxl: 23,
-    xxxl: 30,
-  },
-  weights: {
-    regular: '400' as const,
-    medium: '500' as const,
-    semibold: '600' as const,
-    bold: '700' as const,
-  },
+  sizes: typographySizes,
+  weights: typographyWeights,
 };
 
 export const shadows = {

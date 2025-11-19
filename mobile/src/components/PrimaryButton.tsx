@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   ViewStyle,
 } from 'react-native';
-import { spacing, typography, shadows, theme } from '../theme/theme';
+import { spacing, typography, shadows, theme, useTheme } from '../theme/theme';
 
 interface PrimaryButtonProps {
   label: string;
@@ -28,6 +28,7 @@ export const PrimaryButton: React.FC<PrimaryButtonProps> = ({
   disabled = false,
   style,
 }) => {
+  const dynamicTheme = useTheme();
   const isDisabled = disabled || loading;
 
   return (
@@ -44,7 +45,9 @@ export const PrimaryButton: React.FC<PrimaryButtonProps> = ({
       {loading ? (
         <ActivityIndicator color="#FFFFFF" />
       ) : (
-        <Text style={styles.label}>{label}</Text>
+        <Text style={[styles.label, { fontFamily: dynamicTheme.typography.fontFamily.semibold }]}>
+          {label}
+        </Text>
       )}
     </TouchableOpacity>
   );
@@ -69,7 +72,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: typography.sizes.md,
     fontWeight: typography.weights.semibold,
-    fontFamily: typography.fontFamily.semibold,
   },
 });
 

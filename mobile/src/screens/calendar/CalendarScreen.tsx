@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { StyleSheet, FlatList, View, Text, ActivityIndicator, RefreshControl, TouchableOpacity, Alert } from 'react-native';
-import { colors, spacing, theme, typography } from '../../theme/theme';
+import { colors, spacing, typography, useTheme } from '../../theme/theme';
 import Screen from '../../components/Screen';
 import Card from '../../components/Card';
 import EmptyState from '../../components/EmptyState';
@@ -9,6 +9,7 @@ import type { CalendarEvent } from '../../types';
 import { useTasks } from '../../stores/TaskStore';
 
 const CalendarScreen: React.FC = () => {
+  const theme = useTheme();
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -89,9 +90,11 @@ const CalendarScreen: React.FC = () => {
   return (
     <Screen style={styles.container}>
       <View style={styles.headerRow}>
-        <Text style={styles.title}>Next 7 days</Text>
+        <Text style={[styles.title, { fontFamily: theme.typography.fontFamily.semibold }]}>
+          Next 7 days
+        </Text>
         <Text
-          style={[styles.syncText, syncing && styles.syncTextDisabled]}
+          style={[styles.syncText, syncing && styles.syncTextDisabled, { fontFamily: theme.typography.fontFamily.regular }]}
           onPress={syncing ? undefined : handleSync}
         >
           {syncing ? 'Syncing…' : 'Sync now'}
@@ -100,14 +103,18 @@ const CalendarScreen: React.FC = () => {
 
       {error && (
         <View style={styles.errorBanner}>
-          <Text style={styles.errorText}>{error}</Text>
+          <Text style={[styles.errorText, { fontFamily: theme.typography.fontFamily.regular }]}>
+            {error}
+          </Text>
         </View>
       )}
 
       {loading && !hasEvents ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={theme.colors.primary} />
-          <Text style={styles.loadingText}>Loading upcoming events…</Text>
+          <Text style={[styles.loadingText, { fontFamily: theme.typography.fontFamily.regular }]}>
+            Loading upcoming events…
+          </Text>
         </View>
       ) : !hasEvents ? (
         <Card>
@@ -123,11 +130,15 @@ const CalendarScreen: React.FC = () => {
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
             <Card style={styles.eventCard}>
-              <Text style={styles.eventTitle}>{item.title}</Text>
+              <Text style={[styles.eventTitle, { fontFamily: theme.typography.fontFamily.semibold }]}>
+                {item.title}
+              </Text>
               {item.description && (
-                <Text style={styles.eventDescription}>{item.description}</Text>
+                <Text style={[styles.eventDescription, { fontFamily: theme.typography.fontFamily.regular }]}>
+                  {item.description}
+                </Text>
               )}
-              <Text style={styles.eventMeta}>
+              <Text style={[styles.eventMeta, { fontFamily: theme.typography.fontFamily.regular }]}>
                 {new Date(item.startTime).toLocaleString()} –{' '}
                 {new Date(item.endTime).toLocaleTimeString()}
               </Text>
@@ -135,7 +146,9 @@ const CalendarScreen: React.FC = () => {
                 style={styles.addTaskButton}
                 onPress={() => handleAddAsTask(item)}
               >
-                <Text style={styles.addTaskText}>Add as task</Text>
+                <Text style={[styles.addTaskText, { fontFamily: theme.typography.fontFamily.medium }]}>
+                  Add as task
+                </Text>
               </TouchableOpacity>
             </Card>
           )}
@@ -163,13 +176,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: typography.sizes.md,
     fontWeight: typography.weights.semibold,
-    fontFamily: typography.fontFamily.semibold,
-    color: theme.colors.onSurface,
+    color: colors.gray[900],
   },
   syncText: {
     fontSize: typography.sizes.sm,
-    fontFamily: typography.fontFamily.regular,
-    color: theme.colors.primary,
+    color: colors.gray[900],
   },
   syncTextDisabled: {
     color: colors.gray[400],
@@ -182,18 +193,16 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: spacing.md,
     fontSize: typography.sizes.sm,
-    fontFamily: typography.fontFamily.regular,
-    color: theme.colors.onSurfaceVariant,
+    color: colors.gray[600],
   },
   errorBanner: {
     padding: spacing.sm,
     marginBottom: spacing.sm,
-    borderRadius: theme.roundness,
+    borderRadius: 10,
     backgroundColor: colors.error + '15',
   },
   errorText: {
     fontSize: typography.sizes.sm,
-    fontFamily: typography.fontFamily.regular,
     color: colors.error,
   },
   eventCard: {
@@ -202,18 +211,15 @@ const styles = StyleSheet.create({
   eventTitle: {
     fontSize: typography.sizes.md,
     fontWeight: typography.weights.semibold,
-    fontFamily: typography.fontFamily.semibold,
-    color: theme.colors.onSurface,
+    color: colors.gray[900],
   },
   eventDescription: {
     fontSize: typography.sizes.sm,
-    fontFamily: typography.fontFamily.regular,
-    color: theme.colors.onSurfaceVariant,
+    color: colors.gray[600],
     marginTop: spacing.xs,
   },
   eventMeta: {
     fontSize: typography.sizes.xs,
-    fontFamily: typography.fontFamily.regular,
     color: colors.gray[500],
     marginTop: spacing.xs,
   },
@@ -223,8 +229,7 @@ const styles = StyleSheet.create({
   },
   addTaskText: {
     fontSize: typography.sizes.xs,
-    fontFamily: typography.fontFamily.medium,
-    color: theme.colors.primary,
+    color: colors.gray[900],
     fontWeight: typography.weights.medium,
   },
 });

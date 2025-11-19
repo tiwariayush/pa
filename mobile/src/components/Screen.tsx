@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, StyleSheet, ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors, spacing, theme } from '../theme/theme';
+import { spacing, useTheme } from '../theme/theme';
 
 interface ScreenProps {
   children: React.ReactNode;
@@ -18,8 +18,10 @@ interface ScreenProps {
  * and safe-area handling across the app.
  */
 export const Screen: React.FC<ScreenProps> = ({ children, style }) => {
+  const theme = useTheme();
+  
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.colors.background }]}>
       <View style={[styles.container, style]}>{children}</View>
     </SafeAreaView>
   );
@@ -28,8 +30,6 @@ export const Screen: React.FC<ScreenProps> = ({ children, style }) => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    // Use the themed background so every screen picks up the warm "paper" canvas
-    backgroundColor: theme.colors.background,
   },
   container: {
     flex: 1,

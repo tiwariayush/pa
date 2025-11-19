@@ -7,6 +7,7 @@ import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-nati
 import { MaterialIcons } from '@expo/vector-icons';
 
 import { useAuth, useAuthStore } from '../../stores/AuthStore';
+import { useTasks, useTaskList } from '../../stores/TaskStore';
 import { colors, spacing, typography, useTheme } from '../../theme/theme';
 import Screen from '../../components/Screen';
 import Card from '../../components/Card';
@@ -14,15 +15,35 @@ import PrimaryButton from '../../components/PrimaryButton';
 import EmptyState from '../../components/EmptyState';
 import { useNavigation } from '@react-navigation/native';
 import type { NavigationProp } from '@react-navigation/native';
-import type { RootStackParamList } from '../../types';
+import type { RootStackParamList, Task } from '../../types';
+import { TaskStatus } from '../../types';
 
 const HomeScreen: React.FC = () => {
   const { user } = useAuth();
   const logout = useAuthStore((state) => state.logout);
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const theme = useTheme();
+  const { fetchTasks } = useTasks();
+  const tasks = useTaskList();
 
   const firstName = user?.name?.split(' ')[0] || 'there';
+
+  React.useEffect(() => {
+    // Ensure we have the latest tasks when landing on Home
+    fetchTasks();
+  }, [fetchTasks]);
+
+  const inboxTasks = React.useMemo(
+    () =>
+      tasks
+        .filter(
+          (task: Task) =>
+            task.status === TaskStatus.CAPTURED ||
+            task.status === TaskStatus.PARSED
+        )
+        .slice(0, 3),
+    [tasks]
+  );
 
   return (
     <Screen>
@@ -105,11 +126,65 @@ const HomeScreen: React.FC = () => {
           <Text style={[styles.sectionTitle, { fontFamily: theme.typography.fontFamily.semibold }]}>
             Inbox & focus
           </Text>
-          <EmptyState
-            icon="📥"
-            title="Nothing captured yet"
-            message="Use voice capture or add a task to start building your system. Your future self will thank you."
-          />
+
+          {inboxTasks.length === 0 ? (
+            <EmptyState
+              icon="📥"
+              title="Nothing captured yet"
+              message="Use voice capture or add a task to start building your system. Your future self will thank you."
+            />
+          ) : (
+            <View>
+              {inboxTasks.map((task) => (
+                <View key={task.id} style={styles.inboxItem}>
+                  <View style={styles.inboxBullet} />
+                  <View style={styles.inboxTextContainer}>
+                    <Text
+                      style={[
+                        styles.inboxTitle,
+                        { fontFamily: theme.typography.fontFamily.medium },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {task.title}
+                    </Text>
+                    {task.domain && (
+                      <Text
+                        style={[
+                          styles.inboxMeta,
+                          { fontFamily: theme.typography.fontFamily.regular },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {task.domain.toLowerCase()} • {task.priority.toLowerCase()}
+                      </Text>
+                    )}
+                  </View>
+                </View>
+              ))}
+              {tasks.length > inboxTasks.length && (
+                <TouchableOpacity
+                  onPress={() =>
+                    navigation.navigate('Main', {
+                      screen: 'Tasks',
+                    } as any)
+                  }
+                  style={{ marginTop: spacing.sm }}
+                  activeOpacity={0.7}
+                >
+                  <Text
+                    style={{
+                      fontSize: typography.sizes.xs,
+                      color: colors.gray[600],
+                      fontFamily: theme.typography.fontFamily.medium,
+                    }}
+                  >
+                    View all tasks →
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
         </Card>
       </ScrollView>
 
@@ -220,6 +295,31 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     marginTop: spacing.sm,
+  },
+  inboxItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginTop: spacing.xs,
+  },
+  inboxBullet: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginTop: spacing.xs,
+    marginRight: spacing.sm,
+    backgroundColor: colors.gray[400],
+  },
+  inboxTextContainer: {
+    flex: 1,
+  },
+  inboxTitle: {
+    fontSize: typography.sizes.sm,
+    color: colors.gray[900],
+  },
+  inboxMeta: {
+    marginTop: 2,
+    fontSize: typography.sizes.xs,
+    color: colors.gray[600],
   },
   fab: {
     position: 'absolute',

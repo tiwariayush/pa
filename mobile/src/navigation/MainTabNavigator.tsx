@@ -5,6 +5,7 @@
 
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { useWindowDimensions } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 
 import { MainTabParamList } from '../types';
@@ -22,7 +23,15 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 
 const MainTabNavigator: React.FC = () => {
   const theme = useTheme();
-  
+  const { width, height } = useWindowDimensions();
+
+  const isSmallWidth = width < 360;
+  const isShortHeight = height < 700;
+
+  const tabBarHeight = isShortHeight ? 60 : 74;
+  const tabBarPaddingVertical = isShortHeight ? 4 : 6;
+  const labelFontSize = isSmallWidth ? typography.sizes.xs - 1 : typography.sizes.xs;
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -70,12 +79,12 @@ const MainTabNavigator: React.FC = () => {
           backgroundColor: theme.colors.surface,
           borderTopColor: theme.colors.outline,
           borderTopWidth: 1,
-          paddingBottom: 6,
-          paddingTop: 6,
-          height: 74,
+          paddingBottom: tabBarPaddingVertical,
+          paddingTop: tabBarPaddingVertical,
+          height: tabBarHeight,
         },
         tabBarLabelStyle: {
-          fontSize: typography.sizes.xs,
+          fontSize: labelFontSize,
           fontWeight: typography.weights.medium,
           fontFamily: theme.typography.fontFamily.medium,
           letterSpacing: 0.6,

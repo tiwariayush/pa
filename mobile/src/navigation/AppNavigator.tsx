@@ -9,7 +9,7 @@ import { ActivityIndicator, View } from 'react-native';
 
 import { RootStackParamList } from '../types';
 import { useAuthLoading, useIsAuthenticated } from '../stores/AuthStore';
-import MainTabNavigator from './MainTabNavigator';
+import MainDrawerNavigator from './MainDrawerNavigator';
 import LoginScreen from '../screens/auth/LoginScreen';
 import TaskDetailScreen from '../screens/tasks/TaskDetailScreen';
 import VoiceCaptureScreen from '../screens/capture/VoiceCaptureScreen';
@@ -47,7 +47,7 @@ const AppNavigator: React.FC = () => {
         <>
           <Stack.Screen 
             name="Main" 
-            component={MainTabNavigator}
+            component={MainDrawerNavigator}
           />
           <Stack.Screen 
             name="TaskDetail" 

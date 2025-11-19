@@ -22,7 +22,6 @@ const SettingsScreen: React.FC = () => {
 
   const handleFontSelect = async (font: FontTheme) => {
     await setFont(font);
-    // Note: Font change will require app restart or font reload
   };
 
   const handleBackgroundSelect = async (background: BackgroundTheme) => {
@@ -115,14 +114,6 @@ const SettingsScreen: React.FC = () => {
           </View>
         </Card>
 
-        <Card>
-          <View style={styles.infoBox}>
-            <MaterialIcons name="info" size={20} color={colors.gray[600]} />
-            <Text style={styles.infoText}>
-              Font changes require restarting the app. Background changes apply immediately.
-            </Text>
-          </View>
-        </Card>
       </ScrollView>
     </Screen>
   );
@@ -208,21 +199,6 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-  },
-  infoBox: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    padding: spacing.md,
-    backgroundColor: colors.gray[50],
-    borderRadius: theme.roundness,
-  },
-  infoText: {
-    flex: 1,
-    fontSize: typography.sizes.sm,
-    fontFamily: typography.fontFamily.regular,
-    color: colors.gray[600],
-    marginLeft: spacing.sm,
-    lineHeight: 20,
   },
 });
 

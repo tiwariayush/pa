@@ -37,8 +37,8 @@ class STTService:
             # Decode base64 audio data
             audio_bytes = base64.b64decode(audio_data)
             
-            # Create temporary file for audio
-            with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as temp_file:
+            # Create temporary file for audio (.m4a is the format from iOS/Expo recorder)
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.m4a') as temp_file:
                 temp_file.write(audio_bytes)
                 temp_file_path = temp_file.name
             

@@ -1,3 +1,10 @@
+/**
+ * Voice Capture Screen - Polished mic button with visual states,
+ * clean text input fallback, and professional layout.
+ *
+ * Uses expo-audio (SDK 54+) instead of deprecated expo-av.
+ */
+
 import React, { useCallback, useState } from 'react';
 import {
   View,
@@ -12,12 +19,12 @@ import {
   Platform,
 } from 'react-native';
 import { Audio } from 'expo-av';
-import * as FileSystem from 'expo-file-system';
+import { readAsStringAsync, EncodingType } from 'expo-file-system/legacy';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 
-import { colors, spacing, typography, theme } from '../../theme/theme';
+import { colors, spacing, typography, shadows, useTheme } from '../../theme/theme';
 import Screen from '../../components/Screen';
 import Card from '../../components/Card';
 import PrimaryButton from '../../components/PrimaryButton';
@@ -28,6 +35,7 @@ type VoiceCaptureNav = StackNavigationProp<RootStackParamList, 'VoiceCapture'>;
 
 const VoiceCaptureScreen: React.FC = () => {
   const navigation = useNavigation<VoiceCaptureNav>();
+  const theme = useTheme();
   const { processVoiceCapture } = useTasks();
 
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
@@ -40,7 +48,10 @@ const VoiceCaptureScreen: React.FC = () => {
     try {
       const permission = await Audio.requestPermissionsAsync();
       if (!permission.granted) {
-        Alert.alert('Microphone access needed', 'Please enable microphone access to capture voice.');
+        Alert.alert(
+          'Microphone access needed',
+          'Please enable microphone access to capture voice.'
+        );
         return;
       }
 
@@ -49,11 +60,10 @@ const VoiceCaptureScreen: React.FC = () => {
         playsInSilentModeIOS: true,
       });
 
-      const { recording } = await Audio.Recording.createAsync(
+      const { recording: rec } = await Audio.Recording.createAsync(
         Audio.RecordingOptionsPresets.HIGH_QUALITY
       );
-
-      setRecording(recording);
+      setRecording(rec);
       setIsRecording(true);
     } catch (error: any) {
       console.error('Failed to start recording', error);
@@ -69,6 +79,8 @@ const VoiceCaptureScreen: React.FC = () => {
       await recording.stopAndUnloadAsync();
       const uri = recording.getURI();
 
+      console.log('[VoiceCapture] Recording URI:', uri);
+
       if (!uri) {
         Alert.alert('Error', 'No audio data found. Please try again.');
         return;
@@ -76,8 +88,8 @@ const VoiceCaptureScreen: React.FC = () => {
 
       setIsProcessing(true);
 
-      const base64Audio = await FileSystem.readAsStringAsync(uri, {
-        encoding: FileSystem.EncodingType.Base64,
+      const base64Audio = await readAsStringAsync(uri, {
+        encoding: EncodingType.Base64,
       });
 
       const result = await processVoiceCapture({
@@ -141,31 +153,65 @@ const VoiceCaptureScreen: React.FC = () => {
           style={styles.flex}
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          <Card>
-            <Text style={styles.title}>Capture what’s on your mind</Text>
-            <Text style={styles.subtitle}>
-              Tap the mic and speak freely. I’ll turn your thoughts into structured tasks you can
-              review before saving.
+          {/* Voice capture */}
+          <Card elevated>
+            <View style={styles.headerRow}>
+              <MaterialIcons name="mic" size={20} color={colors.gray[900]} />
+              <Text
+                style={[
+                  styles.title,
+                  { fontFamily: theme.typography.fontFamily.semibold },
+                ]}
+              >
+                Voice capture
+              </Text>
+            </View>
+            <Text
+              style={[
+                styles.subtitle,
+                { fontFamily: theme.typography.fontFamily.regular },
+              ]}
+            >
+              Tap the mic and speak freely. I'll turn your thoughts into
+              structured tasks you can review before saving.
             </Text>
 
             <View style={styles.micContainer}>
-              <TouchableOpacity
-                style={[styles.micButton, isRecording && styles.micButtonRecording]}
-                onPress={handleMicPress}
-                activeOpacity={0.9}
-                disabled={isProcessing}
+              {/* Outer ring */}
+              <View
+                style={[
+                  styles.micRing,
+                  isRecording && styles.micRingRecording,
+                ]}
               >
-                <MaterialIcons
-                  name={isRecording ? 'stop' : 'mic'}
-                  size={32}
-                  color="#FFFFFF"
-                />
-              </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.micButton,
+                    isRecording && styles.micButtonRecording,
+                  ]}
+                  onPress={handleMicPress}
+                  activeOpacity={0.9}
+                  disabled={isProcessing}
+                >
+                  <MaterialIcons
+                    name={isRecording ? 'stop' : 'mic'}
+                    size={32}
+                    color="#FFFFFF"
+                  />
+                </TouchableOpacity>
+              </View>
 
-              <Text style={styles.micLabel}>
+              <Text
+                style={[
+                  styles.micLabel,
+                  isRecording && styles.micLabelRecording,
+                  { fontFamily: theme.typography.fontFamily.medium },
+                ]}
+              >
                 {isRecording
-                  ? 'Listening… tap to finish'
+                  ? 'Listening... tap to finish'
                   : 'Tap to start recording'}
               </Text>
             </View>
@@ -173,36 +219,66 @@ const VoiceCaptureScreen: React.FC = () => {
             {isProcessing && (
               <View style={styles.processingRow}>
                 <ActivityIndicator size="small" color={theme.colors.primary} />
-                <Text style={styles.processingText}>Processing your capture…</Text>
+                <Text
+                  style={[
+                    styles.processingText,
+                    { fontFamily: theme.typography.fontFamily.regular },
+                  ]}
+                >
+                  Processing your capture...
+                </Text>
               </View>
             )}
           </Card>
 
-          <Card style={styles.textCard}>
-            <Text style={styles.tipTitle}>Prefer typing?</Text>
-            <Text style={styles.tipText}>
-              You can also type what’s on your mind and I’ll parse it into tasks.
+          {/* Text capture */}
+          <Card>
+            <View style={styles.headerRow}>
+              <MaterialIcons name="edit" size={18} color={colors.gray[700]} />
+              <Text
+                style={[
+                  styles.sectionTitle,
+                  { fontFamily: theme.typography.fontFamily.semibold },
+                ]}
+              >
+                Prefer typing?
+              </Text>
+            </View>
+            <Text
+              style={[
+                styles.tipText,
+                { fontFamily: theme.typography.fontFamily.regular },
+              ]}
+            >
+              Type what's on your mind and I'll parse it into tasks.
             </Text>
             <TextInput
-              style={styles.textInput}
-              placeholder="E.g. Tomorrow I need to prepare slides for Monday’s client meeting and book a pediatrician appointment next week."
+              style={[
+                styles.textInput,
+                { fontFamily: theme.typography.fontFamily.regular },
+              ]}
+              placeholder="E.g. Tomorrow I need to prepare slides for Monday's client meeting and book a pediatrician appointment."
+              placeholderTextColor={colors.gray[400]}
               value={manualText}
               onChangeText={setManualText}
               multiline
               numberOfLines={4}
             />
             <PrimaryButton
-              label={isSubmittingText ? 'Capturing…' : 'Capture from text'}
+              label={isSubmittingText ? 'Capturing...' : 'Capture from text'}
+              icon="send"
               onPress={handleTextSubmit}
               loading={isSubmittingText}
             />
           </Card>
 
+          {/* Skip */}
           <PrimaryButton
             label="Skip for now"
+            variant="ghost"
             onPress={() => navigation.goBack()}
-            style={styles.skipButton}
             disabled={isRecording || isProcessing}
+            style={styles.skipButton}
           />
         </ScrollView>
       </KeyboardAvoidingView>
@@ -216,34 +292,50 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingVertical: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xxl,
   },
-  container: {
-    flex: 1,
-    paddingVertical: spacing.lg,
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.xs,
   },
   title: {
-    fontSize: typography.sizes.xl,
+    fontSize: typography.sizes.lg,
     fontWeight: typography.weights.semibold,
     color: colors.gray[900],
-    marginBottom: spacing.sm,
   },
   subtitle: {
     fontSize: typography.sizes.sm,
-    color: colors.gray[600],
+    color: colors.gray[500],
+    lineHeight: 19,
   },
   micContainer: {
     alignItems: 'center',
     marginTop: spacing.xl,
     marginBottom: spacing.lg,
   },
-  micButton: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: theme.colors.primary,
+  micRing: {
+    width: 104,
+    height: 104,
+    borderRadius: 52,
+    borderWidth: 3,
+    borderColor: colors.gray[200],
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  micRingRecording: {
+    borderColor: colors.error + '50',
+  },
+  micButton: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: colors.gray[900],
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadows.md,
   },
   micButtonRecording: {
     backgroundColor: colors.error,
@@ -251,49 +343,48 @@ const styles = StyleSheet.create({
   micLabel: {
     marginTop: spacing.md,
     fontSize: typography.sizes.sm,
-    color: colors.gray[600],
+    color: colors.gray[500],
+    fontWeight: typography.weights.medium,
+  },
+  micLabelRecording: {
+    color: colors.error,
   },
   processingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: spacing.sm,
+    justifyContent: 'center',
+    gap: spacing.sm,
   },
   processingText: {
-    marginLeft: spacing.sm,
     fontSize: typography.sizes.sm,
-    color: colors.gray[600],
+    color: colors.gray[500],
   },
-  tipCard: {
-    marginTop: spacing.lg,
-  },
-  textCard: {
-    marginTop: spacing.lg,
-  },
-  tipTitle: {
+  sectionTitle: {
     fontSize: typography.sizes.md,
     fontWeight: typography.weights.semibold,
     color: colors.gray[900],
-    marginBottom: spacing.sm,
   },
   tipText: {
     fontSize: typography.sizes.sm,
-    color: colors.gray[600],
-    marginBottom: spacing.xs,
+    color: colors.gray[500],
+    marginBottom: spacing.sm,
+    lineHeight: 19,
   },
   textInput: {
-    marginTop: spacing.md,
     marginBottom: spacing.md,
     borderWidth: 1,
-    borderColor: colors.gray[300],
-    borderRadius: theme.roundness,
+    borderColor: colors.gray[200],
+    borderRadius: 10,
     padding: spacing.md,
     fontSize: typography.sizes.sm,
     color: colors.gray[900],
     minHeight: 96,
     textAlignVertical: 'top',
+    backgroundColor: colors.gray[50],
+    lineHeight: 20,
   },
   skipButton: {
-    marginTop: spacing.lg,
+    marginTop: spacing.sm,
   },
 });
 

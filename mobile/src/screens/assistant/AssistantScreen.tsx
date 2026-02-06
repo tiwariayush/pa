@@ -1,6 +1,20 @@
+/**
+ * Assistant Screen - "What should I do now?" with icon-labeled chips,
+ * polished form layout, and professional recommendation cards.
+ */
+
 import React, { useState } from 'react';
-import { StyleSheet, View, Text, TextInput, ActivityIndicator, TouchableOpacity } from 'react-native';
-import { colors, spacing, theme, typography } from '../../theme/theme';
+import {
+  StyleSheet,
+  View,
+  Text,
+  TextInput,
+  ScrollView,
+  ActivityIndicator,
+  TouchableOpacity,
+} from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
+import { colors, spacing, typography, shadows, useTheme } from '../../theme/theme';
 import Screen from '../../components/Screen';
 import Card from '../../components/Card';
 import EmptyState from '../../components/EmptyState';
@@ -8,7 +22,20 @@ import PrimaryButton from '../../components/PrimaryButton';
 import { useTasks } from '../../stores/TaskStore';
 import type { WhatNowRequest, WhatNowResponse } from '../../types';
 
+const energyIcons: Record<string, keyof typeof MaterialIcons.glyphMap> = {
+  low: 'battery-2-bar',
+  medium: 'battery-4-bar',
+  high: 'battery-full',
+};
+
+const locationIcons: Record<string, keyof typeof MaterialIcons.glyphMap> = {
+  home: 'home',
+  office: 'business',
+  outside: 'directions-walk',
+};
+
 const AssistantScreen: React.FC = () => {
+  const theme = useTheme();
   const { getWhatNowRecommendations, isLoading } = useTasks();
   const [minutes, setMinutes] = useState('30');
   const [energy, setEnergy] = useState<'low' | 'medium' | 'high' | undefined>('medium');
@@ -17,144 +44,313 @@ const AssistantScreen: React.FC = () => {
 
   const handleGetRecommendations = async () => {
     const availableDurationMin = parseInt(minutes, 10) || undefined;
-
     const request: WhatNowRequest = {
       currentTime: new Date().toISOString(),
       availableDurationMin,
       energyLevel: energy,
       location,
     };
-
     const data = await getWhatNowRecommendations(request);
     setResult(data);
   };
 
   return (
-    <Screen style={styles.container}>
-      <Card>
-        <Text style={styles.title}>What should I do now?</Text>
-        <Text style={styles.subtitle}>
-          Tell me how much time you have and how you’re feeling. I’ll recommend the best tasks for
-          this moment.
-        </Text>
-
-        <View style={styles.field}>
-          <Text style={styles.label}>Time available (minutes)</Text>
-          <TextInput
-            style={styles.input}
-            keyboardType="number-pad"
-            value={minutes}
-            onChangeText={setMinutes}
-          />
-        </View>
-
-        <View style={styles.field}>
-          <Text style={styles.label}>Energy level</Text>
-          <View style={styles.chipRow}>
-            {(['low', 'medium', 'high'] as const).map((level) => (
-              <TouchableOpacity
-                key={level}
+    <Screen>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* Input form */}
+        <Card elevated>
+          <View style={styles.titleRow}>
+            <View style={styles.titleIcon}>
+              <MaterialIcons name="auto-awesome" size={20} color={colors.gray[900]} />
+            </View>
+            <View style={styles.titleTextCol}>
+              <Text
                 style={[
-                  styles.chip,
-                  energy === level && styles.chipSelected,
+                  styles.title,
+                  { fontFamily: theme.typography.fontFamily.semibold },
                 ]}
-                onPress={() => setEnergy(level)}
               >
-                <Text
-                  style={[
-                    styles.chipText,
-                    energy === level && styles.chipTextSelected,
-                  ]}
-                >
-                  {level}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        <View style={styles.field}>
-          <Text style={styles.label}>Location</Text>
-          <View style={styles.chipRow}>
-            {(['home', 'office', 'outside'] as const).map((loc) => (
-              <TouchableOpacity
-                key={loc}
+                What should I do now?
+              </Text>
+              <Text
                 style={[
-                  styles.chip,
-                  location === loc && styles.chipSelected,
+                  styles.subtitle,
+                  { fontFamily: theme.typography.fontFamily.regular },
                 ]}
-                onPress={() => setLocation(loc)}
               >
-                <Text
-                  style={[
-                    styles.chipText,
-                    location === loc && styles.chipTextSelected,
-                  ]}
-                >
-                  {loc}
-                </Text>
-              </TouchableOpacity>
-            ))}
+                Tell me your context and I'll recommend the best tasks.
+              </Text>
+            </View>
           </View>
-        </View>
 
-        <PrimaryButton
-          label="Get recommendations"
-          onPress={handleGetRecommendations}
-          loading={isLoading}
-        />
-      </Card>
-
-      {isLoading && !result && (
-        <View style={styles.loadingRow}>
-          <ActivityIndicator size="small" color={theme.colors.primary} />
-          <Text style={styles.loadingText}>Thinking about your next best move…</Text>
-        </View>
-      )}
-
-      {result && (
-        <Card style={styles.resultsCard}>
-          {result.recommendations.length === 0 ? (
-            <EmptyState
-              icon="🤔"
-              title="No clear recommendation"
-              message="Try adjusting your time, energy level, or location for better matches."
+          {/* Time */}
+          <View style={styles.field}>
+            <Text
+              style={[
+                styles.label,
+                { fontFamily: theme.typography.fontFamily.medium },
+              ]}
+            >
+              <MaterialIcons name="schedule" size={13} color={colors.gray[600]} />
+              {'  '}Time available (minutes)
+            </Text>
+            <TextInput
+              style={[
+                styles.input,
+                { fontFamily: theme.typography.fontFamily.regular },
+              ]}
+              keyboardType="number-pad"
+              value={minutes}
+              onChangeText={setMinutes}
+              placeholder="30"
+              placeholderTextColor={colors.gray[400]}
             />
-          ) : (
-            <>
-              <Text style={styles.resultsTitle}>Recommended tasks</Text>
-              {result.recommendations.map((rec, index) => (
-                <View key={index} style={styles.recCard}>
-                  <Text style={styles.recTitle}>{rec.task.title}</Text>
-                  <Text style={styles.recReason}>{rec.reason}</Text>
-                  <Text style={styles.recMeta}>
-                    ~{rec.estimatedTime} min • confidence {Math.round(rec.confidence * 100)}%
-                  </Text>
-                </View>
-              ))}
-            </>
-          )}
+          </View>
+
+          {/* Energy */}
+          <View style={styles.field}>
+            <Text
+              style={[
+                styles.label,
+                { fontFamily: theme.typography.fontFamily.medium },
+              ]}
+            >
+              <MaterialIcons name="bolt" size={13} color={colors.gray[600]} />
+              {'  '}Energy level
+            </Text>
+            <View style={styles.chipRow}>
+              {(['low', 'medium', 'high'] as const).map((level) => {
+                const selected = energy === level;
+                return (
+                  <TouchableOpacity
+                    key={level}
+                    style={[
+                      styles.chip,
+                      selected && styles.chipSelected,
+                      { borderColor: selected ? theme.colors.primary : colors.gray[200] },
+                    ]}
+                    onPress={() => setEnergy(level)}
+                    activeOpacity={0.7}
+                  >
+                    <MaterialIcons
+                      name={energyIcons[level]}
+                      size={14}
+                      color={selected ? '#FFFFFF' : colors.gray[600]}
+                    />
+                    <Text
+                      style={[
+                        styles.chipText,
+                        selected && styles.chipTextSelected,
+                        { fontFamily: theme.typography.fontFamily.medium },
+                      ]}
+                    >
+                      {level.charAt(0).toUpperCase() + level.slice(1)}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+
+          {/* Location */}
+          <View style={styles.field}>
+            <Text
+              style={[
+                styles.label,
+                { fontFamily: theme.typography.fontFamily.medium },
+              ]}
+            >
+              <MaterialIcons name="place" size={13} color={colors.gray[600]} />
+              {'  '}Location
+            </Text>
+            <View style={styles.chipRow}>
+              {(['home', 'office', 'outside'] as const).map((loc) => {
+                const selected = location === loc;
+                return (
+                  <TouchableOpacity
+                    key={loc}
+                    style={[
+                      styles.chip,
+                      selected && styles.chipSelected,
+                      { borderColor: selected ? theme.colors.primary : colors.gray[200] },
+                    ]}
+                    onPress={() => setLocation(loc)}
+                    activeOpacity={0.7}
+                  >
+                    <MaterialIcons
+                      name={locationIcons[loc]}
+                      size={14}
+                      color={selected ? '#FFFFFF' : colors.gray[600]}
+                    />
+                    <Text
+                      style={[
+                        styles.chipText,
+                        selected && styles.chipTextSelected,
+                        { fontFamily: theme.typography.fontFamily.medium },
+                      ]}
+                    >
+                      {loc.charAt(0).toUpperCase() + loc.slice(1)}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+
+          <PrimaryButton
+            label="Get recommendations"
+            icon="lightbulb"
+            onPress={handleGetRecommendations}
+            loading={isLoading}
+          />
         </Card>
-      )}
+
+        {/* Loading */}
+        {isLoading && !result && (
+          <View style={styles.loadingRow}>
+            <ActivityIndicator size="small" color={theme.colors.primary} />
+            <Text
+              style={[
+                styles.loadingText,
+                { fontFamily: theme.typography.fontFamily.regular },
+              ]}
+            >
+              Thinking about your next best move...
+            </Text>
+          </View>
+        )}
+
+        {/* Results */}
+        {result && (
+          <View>
+            <Text
+              style={[
+                styles.resultsLabel,
+                { fontFamily: theme.typography.fontFamily.semibold },
+              ]}
+            >
+              Recommendations
+            </Text>
+
+            {result.recommendations.length === 0 ? (
+              <Card>
+                <EmptyState
+                  icon="🤔"
+                  title="No clear recommendation"
+                  message="Try adjusting your time, energy level, or location for better matches."
+                  compact
+                />
+              </Card>
+            ) : (
+              result.recommendations.map((rec, index) => {
+                const domainColor =
+                  colors.domains[
+                    rec.task?.domain?.toLowerCase() as keyof typeof colors.domains
+                  ] || colors.gray[400];
+
+                return (
+                  <Card key={index} accentColor={domainColor} style={styles.recCard}>
+                    <View style={styles.recHeader}>
+                      <View style={styles.recRank}>
+                        <Text
+                          style={[
+                            styles.recRankText,
+                            { fontFamily: theme.typography.fontFamily.bold },
+                          ]}
+                        >
+                          {index + 1}
+                        </Text>
+                      </View>
+                      <Text
+                        style={[
+                          styles.recTitle,
+                          { fontFamily: theme.typography.fontFamily.semibold },
+                        ]}
+                      >
+                        {rec.task.title}
+                      </Text>
+                    </View>
+
+                    <Text
+                      style={[
+                        styles.recReason,
+                        { fontFamily: theme.typography.fontFamily.regular },
+                      ]}
+                    >
+                      {rec.reason}
+                    </Text>
+
+                    <View style={styles.recMeta}>
+                      <View style={styles.recMetaItem}>
+                        <MaterialIcons name="schedule" size={12} color={colors.gray[500]} />
+                        <Text
+                          style={[
+                            styles.recMetaText,
+                            { fontFamily: theme.typography.fontFamily.regular },
+                          ]}
+                        >
+                          ~{rec.estimatedTime} min
+                        </Text>
+                      </View>
+                      <View style={styles.recMetaItem}>
+                        <MaterialIcons name="trending-up" size={12} color={colors.success} />
+                        <Text
+                          style={[
+                            styles.recMetaText,
+                            { fontFamily: theme.typography.fontFamily.regular },
+                          ]}
+                        >
+                          {Math.round(rec.confidence * 100)}% match
+                        </Text>
+                      </View>
+                    </View>
+                  </Card>
+                );
+              })
+            )}
+          </View>
+        )}
+      </ScrollView>
     </Screen>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  scrollContent: {
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xxl,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: spacing.lg,
+  },
+  titleIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: colors.gray[100],
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.md,
+  },
+  titleTextCol: {
     flex: 1,
-    padding: spacing.lg,
   },
   title: {
-    fontSize: typography.sizes.xl,
+    fontSize: typography.sizes.lg,
     fontWeight: typography.weights.semibold,
     color: colors.gray[900],
-    marginBottom: spacing.sm,
   },
   subtitle: {
-    fontSize: typography.sizes.sm,
-    color: colors.gray[600],
-    marginBottom: spacing.md,
+    fontSize: typography.sizes.xs,
+    color: colors.gray[500],
+    marginTop: 3,
+    lineHeight: 17,
   },
   field: {
     marginBottom: spacing.md,
@@ -162,76 +358,113 @@ const styles = StyleSheet.create({
   label: {
     fontSize: typography.sizes.sm,
     color: colors.gray[700],
-    marginBottom: spacing.xs,
+    marginBottom: spacing.sm,
+    fontWeight: typography.weights.medium,
   },
   input: {
     borderWidth: 1,
-    borderColor: colors.gray[300],
-    borderRadius: theme.roundness,
-    padding: spacing.sm,
-    fontSize: typography.sizes.sm,
+    borderColor: colors.gray[200],
+    borderRadius: 10,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 2,
+    fontSize: typography.sizes.md,
     color: colors.gray[900],
+    backgroundColor: colors.gray[50],
   },
   chipRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    gap: spacing.sm,
   },
   chip: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: 999,
-    backgroundColor: colors.gray[100],
-    marginRight: spacing.sm,
-    marginTop: spacing.xs,
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.sm + 2,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    backgroundColor: colors.gray[50],
+    gap: spacing.xs,
   },
   chipSelected: {
-    backgroundColor: theme.colors.primary,
+    backgroundColor: colors.gray[900],
+    borderColor: colors.gray[900],
   },
   chipText: {
     fontSize: typography.sizes.xs,
     color: colors.gray[700],
+    fontWeight: typography.weights.medium,
   },
   chipTextSelected: {
-    color: 'white',
+    color: '#FFFFFF',
   },
   loadingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: spacing.md,
+    justifyContent: 'center',
+    paddingVertical: spacing.lg,
+    gap: spacing.sm,
   },
   loadingText: {
-    marginLeft: spacing.sm,
     fontSize: typography.sizes.sm,
-    color: colors.gray[600],
+    color: colors.gray[500],
   },
-  resultsCard: {
-    marginTop: spacing.lg,
-  },
-  resultsTitle: {
-    fontSize: typography.sizes.md,
+  resultsLabel: {
+    fontSize: typography.sizes.xs,
     fontWeight: typography.weights.semibold,
-    color: colors.gray[900],
+    color: colors.gray[500],
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
     marginBottom: spacing.sm,
+    marginTop: spacing.xs,
   },
   recCard: {
-    paddingVertical: spacing.sm,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.gray[200],
+    marginBottom: spacing.sm,
+  },
+  recHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+  },
+  recRank: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.gray[100],
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.sm,
+  },
+  recRankText: {
+    fontSize: typography.sizes.xs,
+    color: colors.gray[700],
+    fontWeight: typography.weights.bold,
   },
   recTitle: {
+    flex: 1,
     fontSize: typography.sizes.md,
-    fontWeight: typography.weights.medium,
+    fontWeight: typography.weights.semibold,
     color: colors.gray[900],
   },
   recReason: {
     fontSize: typography.sizes.sm,
-    color: colors.gray[700],
+    color: colors.gray[600],
+    lineHeight: 19,
     marginTop: spacing.xs,
   },
   recMeta: {
+    flexDirection: 'row',
+    marginTop: spacing.sm,
+    gap: spacing.md,
+  },
+  recMetaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  recMetaText: {
     fontSize: typography.sizes.xs,
     color: colors.gray[500],
-    marginTop: spacing.xs,
   },
 });
 

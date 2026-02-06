@@ -10,6 +10,15 @@ from contextlib import asynccontextmanager
 import sys
 import os
 from typing import Dict, Any
+from dotenv import load_dotenv
+from pathlib import Path
+
+# Load environment variables from .env file
+# Try current directory first, then parent directory (project root)
+env_path = Path(__file__).parent / '.env'
+if not env_path.exists():
+    env_path = Path(__file__).parent.parent / '.env'
+load_dotenv(env_path)
 
 from shared.schemas import (
     VoiceCaptureRequest,
@@ -203,6 +212,8 @@ async def capture_voice(
         )
         
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Voice capture failed: {str(e)}")
 
 

@@ -1,15 +1,16 @@
 /**
  * Main tab navigator for authenticated users
- * Implements the 5-tab structure: Home, Inbox, Tasks, Calendar, Assistant
+ * Implements the 6-tab structure: Home, Inbox, Tasks, Calendar, Assistant, Settings
+ * With polished styling, responsive sizing, and clean headers.
  */
 
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { useWindowDimensions } from 'react-native';
+import { useWindowDimensions, View, StyleSheet } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 
 import { MainTabParamList } from '../types';
-import { colors, typography, useTheme } from '../theme/theme';
+import { colors, typography, shadows, useTheme } from '../theme/theme';
 
 // Import screens
 import HomeScreen from '../screens/home/HomeScreen';
@@ -28,8 +29,7 @@ const MainTabNavigator: React.FC = () => {
   const isSmallWidth = width < 360;
   const isShortHeight = height < 700;
 
-  const tabBarHeight = isShortHeight ? 60 : 74;
-  const tabBarPaddingVertical = isShortHeight ? 4 : 6;
+  const tabBarHeight = isShortHeight ? 62 : 78;
   const labelFontSize = isSmallWidth ? typography.sizes.xs - 1 : typography.sizes.xs;
 
   return (
@@ -40,120 +40,117 @@ const MainTabNavigator: React.FC = () => {
 
           switch (route.name) {
             case 'Home':
-              iconName = 'home';
+              iconName = focused ? 'home' : 'home';
               break;
             case 'Inbox':
-              iconName = 'inbox';
+              iconName = focused ? 'inbox' : 'inbox';
               break;
             case 'Tasks':
-              iconName = 'assignment';
+              iconName = focused ? 'assignment' : 'assignment';
               break;
             case 'Calendar':
-              iconName = 'event';
+              iconName = focused ? 'event' : 'event';
               break;
             case 'Assistant':
-              iconName = 'chat';
+              iconName = focused ? 'auto-awesome' : 'auto-awesome';
               break;
             case 'Settings':
-              iconName = 'settings';
+              iconName = focused ? 'settings' : 'settings';
               break;
             default:
               iconName = 'help';
           }
 
-          const iconSize = focused ? size + 2 : size;
-
           return (
-            <React.Fragment>
+            <View style={[styles.iconContainer, focused && styles.iconContainerFocused]}>
               <MaterialIcons
                 name={iconName}
-                size={iconSize}
+                size={focused ? 22 : 20}
                 color={color}
               />
-            </React.Fragment>
+            </View>
           );
         },
         tabBarActiveTintColor: theme.colors.primary,
-        tabBarInactiveTintColor: colors.gray[500],
+        tabBarInactiveTintColor: colors.gray[400],
         tabBarStyle: {
           backgroundColor: theme.colors.surface,
           borderTopColor: theme.colors.outline,
-          borderTopWidth: 1,
-          paddingBottom: tabBarPaddingVertical,
-          paddingTop: tabBarPaddingVertical,
+          borderTopWidth: StyleSheet.hairlineWidth,
+          paddingBottom: isShortHeight ? 6 : 10,
+          paddingTop: 8,
           height: tabBarHeight,
         },
         tabBarLabelStyle: {
           fontSize: labelFontSize,
           fontWeight: typography.weights.medium,
           fontFamily: theme.typography.fontFamily.medium,
-          letterSpacing: 0.6,
-          textTransform: 'uppercase',
+          letterSpacing: 0.3,
+          marginTop: 2,
         },
         headerStyle: {
-          backgroundColor: theme.colors.surface,
+          backgroundColor: theme.colors.background,
           elevation: 0,
           shadowOpacity: 0,
-          borderBottomWidth: 1,
-          borderBottomColor: colors.gray[200],
+          borderBottomWidth: StyleSheet.hairlineWidth,
+          borderBottomColor: theme.colors.outline,
         },
         headerTitleStyle: {
           fontSize: typography.sizes.lg,
           fontWeight: typography.weights.semibold,
           fontFamily: theme.typography.fontFamily.semibold,
           color: theme.colors.onSurface,
-          letterSpacing: 0.4,
+          letterSpacing: -0.2,
         },
       })}
     >
-      <Tab.Screen 
-        name="Home" 
+      <Tab.Screen
+        name="Home"
         component={HomeScreen}
         options={{
-          title: 'Today',
-          headerTitle: 'What should I do now?',
+          title: 'Home',
+          headerTitle: 'Today',
         }}
       />
-      
-      <Tab.Screen 
-        name="Inbox" 
+
+      <Tab.Screen
+        name="Inbox"
         component={InboxScreen}
         options={{
           title: 'Inbox',
-          headerTitle: 'Captured Items',
-          tabBarBadge: undefined, // Will be set dynamically based on unprocessed items
+          headerTitle: 'Inbox',
         }}
       />
-      
-      <Tab.Screen 
-        name="Tasks" 
+
+      <Tab.Screen
+        name="Tasks"
         component={TasksScreen}
         options={{
           title: 'Tasks',
           headerTitle: 'My Tasks',
         }}
       />
-      
-      <Tab.Screen 
-        name="Calendar" 
+
+      <Tab.Screen
+        name="Calendar"
         component={CalendarScreen}
         options={{
           title: 'Calendar',
           headerTitle: 'Schedule',
         }}
       />
-      
-      <Tab.Screen 
-        name="Assistant" 
+
+      <Tab.Screen
+        name="Assistant"
         component={AssistantScreen}
         options={{
-          title: 'Assistant',
+          title: 'AI',
           headerTitle: 'AI Assistant',
         }}
       />
-      
-      <Tab.Screen 
-        name="Settings" 
+
+      <Tab.Screen
+        name="Settings"
         component={SettingsScreen}
         options={{
           title: 'Settings',
@@ -163,5 +160,18 @@ const MainTabNavigator: React.FC = () => {
     </Tab.Navigator>
   );
 };
+
+const styles = StyleSheet.create({
+  iconContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 36,
+    height: 28,
+    borderRadius: 8,
+  },
+  iconContainerFocused: {
+    backgroundColor: colors.gray[100],
+  },
+});
 
 export default MainTabNavigator;

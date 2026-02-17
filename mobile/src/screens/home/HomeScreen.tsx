@@ -1,10 +1,10 @@
 /**
  * Home Screen - Primary dashboard with smart greetings, live stats,
- * and quick-access recommendations.
+ * proactive nudge cards, daily plan timeline, and quick-access recommendations.
  */
 
-import React from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 
 import { useAuth, useAuthStore } from '../../stores/AuthStore';
@@ -14,9 +14,11 @@ import Screen from '../../components/Screen';
 import Card from '../../components/Card';
 import PrimaryButton from '../../components/PrimaryButton';
 import EmptyState from '../../components/EmptyState';
+import FloatingMenu from '../../components/FloatingMenu';
+import { apiService } from '../../services/api';
 import { useNavigation } from '@react-navigation/native';
 import type { NavigationProp } from '@react-navigation/native';
-import type { RootStackParamList, Task } from '../../types';
+import type { RootStackParamList, Task, Nudge, DailyPlanItem } from '../../types';
 import { TaskStatus } from '../../types';
 
 /** Return a contextual greeting based on the time of day */
@@ -39,6 +41,27 @@ const getSubtitle = (): string => {
   return 'Review tomorrow and rest easy.';
 };
 
+/** Nudge icon + color config */
+const nudgeConfig: Record<string, { icon: keyof typeof MaterialIcons.glyphMap; color: string; bg: string }> = {
+  overdue: { icon: 'warning', color: colors.error, bg: colors.error + '12' },
+  due_soon: { icon: 'schedule', color: colors.warning, bg: colors.warning + '12' },
+  suggestion: { icon: 'lightbulb', color: colors.info, bg: colors.info + '12' },
+  reminder: { icon: 'notifications', color: colors.gray[600], bg: colors.gray[100] },
+};
+
+/** Format plan time to readable format */
+const formatPlanTime = (iso: string): string => {
+  try {
+    return new Date(iso).toLocaleTimeString(undefined, {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+  } catch {
+    return iso;
+  }
+};
+
 const HomeScreen: React.FC = () => {
   const { user } = useAuth();
   const logout = useAuthStore((state) => state.logout);
@@ -47,11 +70,34 @@ const HomeScreen: React.FC = () => {
   const { fetchTasks } = useTasks();
   const tasks = useTaskList();
 
+  const [nudges, setNudges] = useState<Nudge[]>([]);
+  const [nudgesLoading, setNudgesLoading] = useState(false);
+  const [dailyPlan, setDailyPlan] = useState<DailyPlanItem[]>([]);
+  const [planSummary, setPlanSummary] = useState('');
+  const [planLoading, setPlanLoading] = useState(false);
+
   const firstName = user?.name?.split(' ')[0] || 'there';
 
-  React.useEffect(() => {
+  useEffect(() => {
     fetchTasks();
   }, [fetchTasks]);
+
+  // Fetch nudges on load
+  const fetchNudges = useCallback(async () => {
+    try {
+      setNudgesLoading(true);
+      const data = await apiService.getNudges();
+      setNudges(data);
+    } catch {
+      // Silently fail – nudges are optional enhancement
+    } finally {
+      setNudgesLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchNudges();
+  }, [fetchNudges]);
 
   // Compute live stats
   const stats = React.useMemo(() => {
@@ -127,6 +173,41 @@ const HomeScreen: React.FC = () => {
             <MaterialIcons name="logout" size={18} color={colors.gray[400]} />
           </TouchableOpacity>
         </View>
+
+        {/* Proactive Nudges */}
+        {nudges.length > 0 && (
+          <View style={styles.nudgesContainer}>
+            {nudges.slice(0, 3).map((nudge, index) => {
+              const config = nudgeConfig[nudge.type] || nudgeConfig.reminder;
+              return (
+                <TouchableOpacity
+                  key={index}
+                  style={[styles.nudgeCard, { backgroundColor: config.bg }]}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    if (nudge.taskId) {
+                      navigation.navigate('TaskDetail', { taskId: nudge.taskId });
+                    }
+                  }}
+                >
+                  <MaterialIcons name={config.icon} size={16} color={config.color} />
+                  <Text
+                    style={[
+                      styles.nudgeText,
+                      { color: config.color, fontFamily: theme.typography.fontFamily.medium },
+                    ]}
+                    numberOfLines={2}
+                  >
+                    {nudge.message}
+                  </Text>
+                  {nudge.taskId && (
+                    <MaterialIcons name="chevron-right" size={16} color={config.color} />
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
 
         {/* What should I do now? */}
         <Card elevated>
@@ -244,6 +325,83 @@ const HomeScreen: React.FC = () => {
           </View>
         </View>
 
+        {/* Today's Plan */}
+        {dailyPlan.length > 0 && (
+          <>
+            <Text
+              style={[
+                styles.sectionLabel,
+                { fontFamily: theme.typography.fontFamily.semibold },
+              ]}
+            >
+              Today's plan
+            </Text>
+            <Card>
+              {planSummary ? (
+                <Text
+                  style={[
+                    styles.planSummary,
+                    { fontFamily: theme.typography.fontFamily.regular },
+                  ]}
+                >
+                  {planSummary}
+                </Text>
+              ) : null}
+              {dailyPlan.map((item, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={[
+                    styles.planItem,
+                    index < dailyPlan.length - 1 && styles.planItemBorder,
+                  ]}
+                  activeOpacity={0.7}
+                  onPress={() => navigation.navigate('TaskDetail', { taskId: item.taskId })}
+                >
+                  <View style={styles.planTimeCol}>
+                    <Text
+                      style={[
+                        styles.planTime,
+                        { fontFamily: theme.typography.fontFamily.medium },
+                      ]}
+                    >
+                      {formatPlanTime(item.suggestedTime)}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.planDuration,
+                        { fontFamily: theme.typography.fontFamily.regular },
+                      ]}
+                    >
+                      {item.estimatedDurationMin}m
+                    </Text>
+                  </View>
+                  <View style={styles.planDivider} />
+                  <View style={styles.planContent}>
+                    <Text
+                      style={[
+                        styles.planTitle,
+                        { fontFamily: theme.typography.fontFamily.medium },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {item.taskTitle}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.planReason,
+                        { fontFamily: theme.typography.fontFamily.regular },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {item.reason}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </Card>
+          </>
+        )}
+
         {/* Inbox & Focus */}
         <Text
           style={[
@@ -309,6 +467,7 @@ const HomeScreen: React.FC = () => {
                       >
                         {task.domain?.toLowerCase()}
                         {task.priority ? ` \u00B7 ${task.priority.toLowerCase()}` : ''}
+                        {task.estimatedDurationMin ? ` \u00B7 ~${task.estimatedDurationMin}m` : ''}
                       </Text>
                     </View>
                     <MaterialIcons
@@ -421,6 +580,9 @@ const HomeScreen: React.FC = () => {
       >
         <MaterialIcons name="mic" size={26} color="white" />
       </TouchableOpacity>
+
+      {/* Floating Menu */}
+      <FloatingMenu />
     </Screen>
   );
 };
@@ -456,6 +618,28 @@ const styles = StyleSheet.create({
     backgroundColor: colors.gray[100],
     marginTop: spacing.xs,
   },
+
+  // Nudges
+  nudgesContainer: {
+    marginBottom: spacing.md,
+    gap: spacing.xs,
+  },
+  nudgeCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 2,
+    borderRadius: 10,
+    gap: spacing.sm,
+  },
+  nudgeText: {
+    flex: 1,
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.medium,
+    lineHeight: 19,
+  },
+
+  // What Now
   whatNowHeader: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -484,6 +668,8 @@ const styles = StyleSheet.create({
     marginTop: 3,
     lineHeight: 17,
   },
+
+  // Sections
   sectionLabel: {
     fontSize: typography.sizes.xs,
     fontWeight: typography.weights.semibold,
@@ -498,6 +684,8 @@ const styles = StyleSheet.create({
     textTransform: 'none',
     letterSpacing: 0,
   },
+
+  // Stats
   statsRow: {
     flexDirection: 'row',
     marginBottom: spacing.lg,
@@ -531,6 +719,60 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.4,
   },
+
+  // Daily plan
+  planSummary: {
+    fontSize: typography.sizes.xs,
+    color: colors.gray[500],
+    marginBottom: spacing.sm,
+    lineHeight: 17,
+  },
+  planItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.sm + 2,
+  },
+  planItemBorder: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.gray[200],
+  },
+  planTimeCol: {
+    width: 56,
+    alignItems: 'flex-end',
+    paddingRight: spacing.sm,
+  },
+  planTime: {
+    fontSize: typography.sizes.xs,
+    color: colors.gray[900],
+    fontWeight: typography.weights.medium,
+  },
+  planDuration: {
+    fontSize: 10,
+    color: colors.gray[400],
+    marginTop: 1,
+  },
+  planDivider: {
+    width: 2,
+    height: '100%',
+    minHeight: 32,
+    borderRadius: 1,
+    backgroundColor: colors.info + '30',
+    marginRight: spacing.sm,
+  },
+  planContent: {
+    flex: 1,
+  },
+  planTitle: {
+    fontSize: typography.sizes.sm,
+    color: colors.gray[900],
+  },
+  planReason: {
+    fontSize: typography.sizes.xs,
+    color: colors.gray[500],
+    marginTop: 1,
+  },
+
+  // Inbox
   inboxItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -572,6 +814,8 @@ const styles = StyleSheet.create({
     color: colors.gray[500],
     marginRight: spacing.xs,
   },
+
+  // Quick actions
   quickActionsRow: {
     flexDirection: 'row',
     gap: spacing.sm,

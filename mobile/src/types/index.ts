@@ -66,6 +66,7 @@ export interface User {
   name: string;
   email: string;
   timeZone: string;
+  householdMembers: string[];
   defaultWorkHours: Record<string, any>;
   defaultFamilyHours: Record<string, any>;
   preferences: Record<string, any>;
@@ -156,13 +157,130 @@ export interface TaskListResponse {
   hasMore: boolean;
 }
 
+// Nudge types
+export type NudgeType = 'due_soon' | 'overdue' | 'suggestion' | 'reminder';
+
+export interface Nudge {
+  type: NudgeType;
+  message: string;
+  taskId?: string;
+  action?: string;
+}
+
+export interface NudgesResponse {
+  nudges: Nudge[];
+}
+
+// Daily Plan types
+export interface DailyPlanItem {
+  taskId: string;
+  taskTitle: string;
+  suggestedTime: string;
+  reason: string;
+  estimatedDurationMin: number;
+}
+
+export interface DailyPlanResponse {
+  plan: DailyPlanItem[];
+  summary: string;
+}
+
+// Task Action types
+export type TaskActionType =
+  | 'research' | 'purchase' | 'email' | 'call' | 'book'
+  | 'delegate' | 'schedule' | 'remind' | 'track'
+  | 'decide' | 'photo' | 'checklist';
+
+export type TaskActionStatus = 'pending' | 'in_progress' | 'done' | 'skipped';
+
+export interface TaskAction {
+  id: string;
+  taskId: string;
+  type: TaskActionType;
+  label: string;
+  status: TaskActionStatus;
+  orderIndex: number;
+  metadata: Record<string, any>;
+  assignedTo?: string;
+  dueDate?: string;
+  completedAt?: string;
+  createdAt?: string;
+}
+
+export interface DecisionOption {
+  title: string;
+  description: string;
+  imageUrl?: string;
+  price?: string;
+  rating?: number;
+  pros: string[];
+  cons: string[];
+  url?: string;
+  recommended: boolean;
+}
+
+export interface TaskAttachment {
+  id: string;
+  taskId: string;
+  type: string;
+  url: string;
+  thumbnailUrl?: string;
+  caption?: string;
+  createdAt?: string;
+}
+
+// Household types
+export interface HouseholdMember {
+  id?: string;
+  userId?: string;
+  name: string;
+  role: string;
+  skills: string[];
+  availability: Record<string, any>;
+  contact?: string;
+  isExternal: boolean;
+}
+
+export interface ExternalProvider {
+  id?: string;
+  userId?: string;
+  name: string;
+  serviceType: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  notes?: string;
+  rating?: number;
+}
+
+export interface HouseholdResponse {
+  members: HouseholdMember[];
+  providers: ExternalProvider[];
+}
+
+// Recurring template types
+export interface RecurringTemplate {
+  id?: string;
+  userId?: string;
+  title: string;
+  domain: TaskDomain;
+  frequency: string;
+  cronExpression?: string;
+  defaultActions: Record<string, any>[];
+  lastGenerated?: string;
+  nextDue?: string;
+  active: boolean;
+}
+
 // Navigation types
 export type RootStackParamList = {
   Main: undefined;
   Login: undefined;
   TaskDetail: { taskId: string };
+  DecisionView: { taskId: string; actionId: string };
   VoiceCapture: undefined;
   CaptureReview: { captureResult: VoiceCaptureResponse };
+  Household: undefined;
 };
 
 export type MainTabParamList = {

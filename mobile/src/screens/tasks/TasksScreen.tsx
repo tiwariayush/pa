@@ -21,6 +21,7 @@ import { colors, spacing, typography, useTheme } from '../../theme/theme';
 import Screen from '../../components/Screen';
 import Card from '../../components/Card';
 import EmptyState from '../../components/EmptyState';
+import FloatingMenu from '../../components/FloatingMenu';
 import {
   useTasks,
   useTaskList,
@@ -48,6 +49,26 @@ const statusConfig: Record<string, { label: string; color: string }> = {
   in_progress: { label: 'In Progress', color: colors.statuses.in_progress },
   done: { label: 'Done', color: colors.statuses.done },
   cancelled: { label: 'Cancelled', color: colors.statuses.cancelled },
+};
+
+/** Format due date for card display */
+const formatDueLabel = (dateStr: string): { text: string; color: string } => {
+  const now = new Date();
+  const due = new Date(dateStr);
+  const todayStr = now.toISOString().slice(0, 10);
+  const dueStr = due.toISOString().slice(0, 10);
+  const diffDays = Math.round(
+    (new Date(dueStr).getTime() - new Date(todayStr).getTime()) / (1000 * 60 * 60 * 24)
+  );
+
+  if (diffDays < 0) return { text: `Overdue ${Math.abs(diffDays)}d`, color: colors.error };
+  if (diffDays === 0) return { text: 'Due today', color: colors.warning };
+  if (diffDays === 1) return { text: 'Due tomorrow', color: colors.info };
+  if (diffDays <= 7) return { text: `Due in ${diffDays}d`, color: colors.info };
+  return {
+    text: `Due ${due.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`,
+    color: colors.gray[500],
+  };
 };
 
 const TasksScreen: React.FC = () => {
@@ -140,6 +161,39 @@ const TasksScreen: React.FC = () => {
                 >
                   {item.domain?.toLowerCase()}
                 </Text>
+
+                {/* Estimated duration */}
+                {item.estimatedDurationMin != null && item.estimatedDurationMin > 0 && (
+                  <View style={styles.timeBadge}>
+                    <MaterialIcons name="schedule" size={11} color={colors.gray[500]} />
+                    <Text
+                      style={[
+                        styles.timeText,
+                        { fontFamily: theme.typography.fontFamily.regular },
+                      ]}
+                    >
+                      ~{item.estimatedDurationMin} min
+                    </Text>
+                  </View>
+                )}
+
+                {/* Due date */}
+                {item.dueDate && item.status !== 'done' && (() => {
+                  const dueInfo = formatDueLabel(item.dueDate);
+                  return (
+                    <View style={styles.timeBadge}>
+                      <MaterialIcons name="event" size={11} color={dueInfo.color} />
+                      <Text
+                        style={[
+                          styles.timeText,
+                          { color: dueInfo.color, fontFamily: theme.typography.fontFamily.regular },
+                        ]}
+                      >
+                        {dueInfo.text}
+                      </Text>
+                    </View>
+                  );
+                })()}
               </View>
             </View>
 
@@ -213,6 +267,7 @@ const TasksScreen: React.FC = () => {
           />
         </>
       )}
+      <FloatingMenu />
     </Screen>
   );
 };
@@ -316,6 +371,15 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.medium,
   },
   domainText: {
+    fontSize: typography.sizes.xs,
+    color: colors.gray[500],
+  },
+  timeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  timeText: {
     fontSize: typography.sizes.xs,
     color: colors.gray[500],
   },

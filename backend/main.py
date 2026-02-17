@@ -3,8 +3,9 @@ Personal Assistant Backend API
 FastAPI server with AI agent orchestration
 """
 
-from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks
+from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from contextlib import asynccontextmanager
 import sys
@@ -20,6 +21,7 @@ if not env_path.exists():
     env_path = Path(__file__).parent.parent / '.env'
 load_dotenv(env_path)
 
+from typing import List
 from shared.schemas import (
     VoiceCaptureRequest,
     VoiceCaptureResponse,
@@ -34,6 +36,23 @@ from shared.schemas import (
     EmailDraftResponse,
     ResearchRequest,
     ResearchResponse,
+    NudgesResponse,
+    Nudge,
+    NudgeType,
+    DailyPlanResponse,
+    TaskAction,
+    TaskActionType,
+    TaskActionStatus,
+    TaskActionsResponse,
+    ActionExecuteRequest,
+    ActionExecuteResponse,
+    TaskAttachment,
+    TaskAttachmentsResponse,
+    HouseholdMember,
+    ExternalProvider,
+    HouseholdResponse,
+    RecurringTemplate,
+    RecurringTemplatesResponse,
     User,
     TaskStatus,
     TaskDomain,
@@ -196,11 +215,16 @@ async def capture_voice(
             )
             created_tasks.append(task)
         
-        # Schedule background processing for calendar integration
+        # Schedule background processing: calendar + workflow decomposition
         background_tasks.add_task(
             schedule_tasks_background,
             created_tasks,
             current_user.id
+        )
+        background_tasks.add_task(
+            decompose_tasks_background,
+            created_tasks,
+            current_user,
         )
         
         return VoiceCaptureResponse(
@@ -242,6 +266,23 @@ async def schedule_tasks_background(tasks: list[Task], user_id: str):
                     start_time=best_slot.start,
                     end_time=best_slot.end
                 )
+
+
+async def decompose_tasks_background(tasks: list[Task], user: User):
+    """Background task to decompose captured tasks into workflow actions."""
+    try:
+        ai = AIOrchestrator()
+        ts = TaskService()
+        members = await ts.get_household_members(user.id)
+
+        for task in tasks:
+            actions = await ai.decompose_task_into_actions(task, user, members)
+            actions = ai.suggest_delegation(task, actions, members)
+            await ts.add_actions_to_task(task.id, actions)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        print(f"[Background] Workflow decomposition failed: {e}")
 
 
 # Task management endpoints
@@ -357,6 +398,297 @@ async def what_now(
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Recommendation failed: {str(e)}")
+
+
+# Proactive nudges endpoint
+@app.get("/recommendations/nudges", response_model=NudgesResponse)
+async def get_nudges(
+    current_user: User = Depends(get_current_user),
+    task_service: TaskService = Depends(get_task_service)
+):
+    """
+    Get proactive nudge notifications based on task deadlines and patterns.
+    Returns nudges for overdue tasks, tasks due soon (1-3 days), and contextual suggestions.
+    """
+    try:
+        from datetime import datetime, timedelta
+
+        # Fetch all open tasks
+        all_tasks_resp = await task_service.list_tasks(
+            user_id=current_user.id,
+            filters=TaskListRequest(limit=200)
+        )
+        open_tasks = [
+            t for t in all_tasks_resp.tasks
+            if t.status not in (TaskStatus.DONE, TaskStatus.CANCELLED)
+        ]
+
+        nudges: list[Nudge] = []
+        now = datetime.now()
+        today_str = now.strftime("%Y-%m-%d")
+
+        for task in open_tasks:
+            if not task.due_date:
+                continue
+
+            due_str = task.due_date.isoformat() if hasattr(task.due_date, 'isoformat') else str(task.due_date)
+            due_str = due_str[:10]
+
+            diff_days = (datetime.strptime(due_str, "%Y-%m-%d") - datetime.strptime(today_str, "%Y-%m-%d")).days
+
+            if diff_days < 0:
+                nudges.append(Nudge(
+                    type=NudgeType.OVERDUE,
+                    message=f'"{task.title}" is overdue by {abs(diff_days)} day{"s" if abs(diff_days) != 1 else ""}.',
+                    task_id=task.id,
+                    action="view_task",
+                ))
+            elif diff_days == 0:
+                nudges.append(Nudge(
+                    type=NudgeType.DUE_SOON,
+                    message=f'"{task.title}" is due today.',
+                    task_id=task.id,
+                    action="start_task",
+                ))
+            elif diff_days <= 3:
+                nudges.append(Nudge(
+                    type=NudgeType.DUE_SOON,
+                    message=f'"{task.title}" is due in {diff_days} day{"s" if diff_days != 1 else ""}.',
+                    task_id=task.id,
+                    action="view_task",
+                ))
+
+        # Sort: overdue first, then due_soon
+        type_priority = {NudgeType.OVERDUE: 0, NudgeType.DUE_SOON: 1, NudgeType.SUGGESTION: 2, NudgeType.REMINDER: 3}
+        nudges.sort(key=lambda n: type_priority.get(n.type, 99))
+
+        return NudgesResponse(nudges=nudges[:10])  # Limit to 10 nudges
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to generate nudges: {str(e)}")
+
+
+# Daily plan generation endpoint
+@app.post("/recommendations/daily-plan", response_model=DailyPlanResponse)
+async def generate_daily_plan(
+    current_user: User = Depends(get_current_user),
+    ai_orchestrator: AIOrchestrator = Depends(get_ai_orchestrator),
+    task_service: TaskService = Depends(get_task_service)
+):
+    """
+    Generate an AI-powered daily plan considering calendar, tasks, and energy patterns.
+    """
+    try:
+        plan = await ai_orchestrator.generate_daily_plan(
+            user=current_user,
+            task_service=task_service,
+        )
+        return plan
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Daily plan generation failed: {str(e)}")
+
+
+# ── Task Actions endpoints ─────────────────────────────────────────
+
+@app.get("/tasks/{task_id}/actions", response_model=TaskActionsResponse)
+async def get_task_actions(
+    task_id: str,
+    current_user: User = Depends(get_current_user),
+    task_service: TaskService = Depends(get_task_service)
+):
+    """Get all actions for a task."""
+    actions = await task_service.get_task_actions(task_id)
+    return TaskActionsResponse(actions=actions)
+
+
+@app.post("/tasks/{task_id}/actions/generate", response_model=TaskActionsResponse)
+async def generate_task_actions(
+    task_id: str,
+    current_user: User = Depends(get_current_user),
+    task_service: TaskService = Depends(get_task_service),
+    ai_orchestrator: AIOrchestrator = Depends(get_ai_orchestrator)
+):
+    """Use the WorkflowAgent to decompose a task into typed actions."""
+    task = await task_service.get_task(task_id, current_user.id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    # Get household members for delegation suggestions
+    members = await task_service.get_household_members(current_user.id)
+
+    # Generate actions via WorkflowAgent
+    actions = await ai_orchestrator.decompose_task_into_actions(
+        task=task, user=current_user, household_members=members
+    )
+
+    # Apply delegation engine
+    actions = ai_orchestrator.suggest_delegation(task, actions, members)
+
+    # Save to database
+    saved = await task_service.add_actions_to_task(task_id, actions)
+    return TaskActionsResponse(actions=saved)
+
+
+@app.put("/tasks/{task_id}/actions/{action_id}")
+async def update_task_action(
+    task_id: str,
+    action_id: str,
+    request: ActionExecuteRequest,
+    current_user: User = Depends(get_current_user),
+    task_service: TaskService = Depends(get_task_service)
+):
+    """Update an action's status or metadata."""
+    updates = {}
+    if request.status:
+        updates["status"] = request.status
+    if request.metadata_updates:
+        # Merge metadata
+        action = await task_service.db.get_task_action(action_id)
+        if action:
+            merged = {**action.metadata, **request.metadata_updates}
+            updates["metadata"] = merged
+
+    result = await task_service.update_action(action_id, updates)
+    if not result:
+        raise HTTPException(status_code=404, detail="Action not found")
+    return ActionExecuteResponse(action=result, side_effects=[])
+
+
+# ── Task Attachments endpoints ────────────────────────────────────
+
+@app.get("/tasks/{task_id}/attachments", response_model=TaskAttachmentsResponse)
+async def get_task_attachments(
+    task_id: str,
+    current_user: User = Depends(get_current_user),
+    task_service: TaskService = Depends(get_task_service)
+):
+    """Get all attachments for a task."""
+    attachments = await task_service.get_task_attachments(task_id)
+    return TaskAttachmentsResponse(attachments=attachments)
+
+
+@app.post("/tasks/{task_id}/attachments", response_model=TaskAttachment)
+async def add_task_attachment(
+    task_id: str,
+    attachment: TaskAttachment,
+    current_user: User = Depends(get_current_user),
+    task_service: TaskService = Depends(get_task_service)
+):
+    """Add an attachment to a task."""
+    attachment.task_id = task_id
+    return await task_service.add_attachment(attachment)
+
+
+@app.delete("/tasks/{task_id}/attachments/{attachment_id}")
+async def delete_task_attachment(
+    task_id: str,
+    attachment_id: str,
+    current_user: User = Depends(get_current_user),
+    task_service: TaskService = Depends(get_task_service)
+):
+    """Delete an attachment."""
+    success = await task_service.delete_attachment(attachment_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Attachment not found")
+    return {"message": "Attachment deleted"}
+
+
+# ── Household endpoints ───────────────────────────────────────────
+
+@app.get("/household", response_model=HouseholdResponse)
+async def get_household(
+    current_user: User = Depends(get_current_user),
+    task_service: TaskService = Depends(get_task_service)
+):
+    """Get household members and service providers."""
+    members = await task_service.get_household_members(current_user.id)
+    providers = await task_service.get_service_providers(current_user.id)
+    return HouseholdResponse(members=members, providers=providers)
+
+
+@app.post("/household/members", response_model=HouseholdMember)
+async def add_household_member(
+    member: HouseholdMember,
+    current_user: User = Depends(get_current_user),
+    task_service: TaskService = Depends(get_task_service)
+):
+    """Add a household member."""
+    member.user_id = current_user.id
+    return await task_service.add_household_member(member)
+
+
+@app.delete("/household/members/{member_id}")
+async def remove_household_member(
+    member_id: str,
+    current_user: User = Depends(get_current_user),
+    task_service: TaskService = Depends(get_task_service)
+):
+    """Remove a household member."""
+    success = await task_service.delete_household_member(member_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Member not found")
+    return {"message": "Member removed"}
+
+
+@app.post("/household/providers", response_model=ExternalProvider)
+async def add_service_provider(
+    provider: ExternalProvider,
+    current_user: User = Depends(get_current_user),
+    task_service: TaskService = Depends(get_task_service)
+):
+    """Add a service provider."""
+    provider.user_id = current_user.id
+    return await task_service.add_service_provider(provider)
+
+
+@app.delete("/household/providers/{provider_id}")
+async def remove_service_provider(
+    provider_id: str,
+    current_user: User = Depends(get_current_user),
+    task_service: TaskService = Depends(get_task_service)
+):
+    """Remove a service provider."""
+    success = await task_service.delete_service_provider(provider_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Provider not found")
+    return {"message": "Provider removed"}
+
+
+# ── Recurring Templates endpoints ─────────────────────────────────
+
+@app.get("/recurring-templates", response_model=RecurringTemplatesResponse)
+async def get_recurring_templates(
+    current_user: User = Depends(get_current_user),
+    task_service: TaskService = Depends(get_task_service)
+):
+    """Get all recurring templates."""
+    templates = await task_service.get_recurring_templates(current_user.id)
+    return RecurringTemplatesResponse(templates=templates)
+
+
+@app.post("/recurring-templates", response_model=RecurringTemplate)
+async def create_recurring_template(
+    template: RecurringTemplate,
+    current_user: User = Depends(get_current_user),
+    task_service: TaskService = Depends(get_task_service)
+):
+    """Create a recurring template."""
+    template.user_id = current_user.id
+    return await task_service.add_recurring_template(template)
+
+
+@app.post("/recurring-templates/seed-defaults", response_model=RecurringTemplatesResponse)
+async def seed_default_templates(
+    current_user: User = Depends(get_current_user),
+    task_service: TaskService = Depends(get_task_service)
+):
+    """Seed account with pre-built toddler family templates."""
+    templates = await task_service.seed_default_templates(current_user.id)
+    return RecurringTemplatesResponse(templates=templates)
 
 
 # Email assistance endpoints
@@ -476,6 +808,35 @@ async def import_calendar_event_to_task(
         event=event,
     )
     return task
+
+
+# ── File upload endpoint ───────────────────────────────────────────
+
+import uuid as _uuid
+UPLOAD_DIR = Path(__file__).parent / "uploads"
+UPLOAD_DIR.mkdir(exist_ok=True)
+
+# Serve uploaded files as static
+app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
+
+
+@app.post("/upload")
+async def upload_file(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+):
+    """Upload an image or document. Returns the URL for the uploaded file."""
+    ext = Path(file.filename or "file").suffix or ".jpg"
+    filename = f"{_uuid.uuid4()}{ext}"
+    filepath = UPLOAD_DIR / filename
+
+    contents = await file.read()
+    with open(filepath, "wb") as f:
+        f.write(contents)
+
+    # Build URL (assumes backend is accessed via its own base URL)
+    url = f"/uploads/{filename}"
+    return {"url": url, "filename": filename}
 
 
 if __name__ == "__main__":

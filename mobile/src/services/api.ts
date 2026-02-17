@@ -15,6 +15,16 @@ import {
   WhatNowRequest,
   WhatNowResponse,
   CalendarEvent,
+  Nudge,
+  NudgesResponse,
+  DailyPlanItem,
+  DailyPlanResponse,
+  TaskAction,
+  TaskAttachment,
+  HouseholdMember,
+  ExternalProvider,
+  HouseholdResponse,
+  RecurringTemplate,
   TaskDomain,
   TaskStatus,
   Priority,
@@ -175,11 +185,50 @@ class APIService {
       location: request.location,
     };
 
-    const response: AxiosResponse<WhatNowResponse> = await this.client.post(
+    const response: AxiosResponse<any> = await this.client.post(
       '/recommendations/what-now',
       payload
     );
-    return response.data;
+
+    const data = response.data;
+
+    // Map snake_case task fields inside recommendations to camelCase
+    const mapTask = (t: any) => {
+      if (!t) return undefined;
+      return {
+        id: t.id,
+        userId: t.user_id ?? t.userId,
+        title: t.title,
+        description: t.description,
+        domain: t.domain,
+        status: t.status,
+        priority: t.priority,
+        priorityScore: t.priority_score ?? t.priorityScore ?? 0,
+        importance: t.importance ?? 3,
+        urgency: t.urgency ?? 3,
+        dueDate: t.due_date ?? t.dueDate,
+        estimatedDurationMin: t.estimated_duration_min ?? t.estimatedDurationMin,
+        createdAt: t.created_at ?? t.createdAt,
+        updatedAt: t.updated_at ?? t.updatedAt,
+        source: t.source ?? 'unknown',
+        requiresCalendarBlock: t.requires_calendar_block ?? t.requiresCalendarBlock ?? false,
+        linkedCalendarEventId: t.linked_calendar_event_id ?? t.linkedCalendarEventId,
+        linkedEmailThreadId: t.linked_email_thread_id ?? t.linkedEmailThreadId,
+        aiMetadata: t.ai_metadata ?? t.aiMetadata ?? {},
+        subtasks: t.subtasks ?? [],
+      };
+    };
+
+    return {
+      recommendations: (data.recommendations || []).map((r: any) => ({
+        task: mapTask(r.task),
+        reason: r.reason || '',
+        estimatedTime: r.estimatedTime ?? r.estimated_time ?? 30,
+        confidence: r.confidence ?? 0.5,
+      })),
+      reasoning: data.reasoning || '',
+      contextSummary: data.context_summary ?? data.contextSummary ?? '',
+    };
   }
 
   // Calendar
@@ -212,6 +261,206 @@ class APIService {
       `/calendar/events/${eventId}/import-to-task`
     );
     return response.data;
+  }
+
+  // Nudges
+  async getNudges(): Promise<Nudge[]> {
+    const response: AxiosResponse<any> = await this.client.get('/recommendations/nudges');
+    // Map snake_case to camelCase
+    return (response.data.nudges || []).map((n: any) => ({
+      type: n.type,
+      message: n.message,
+      taskId: n.task_id,
+      action: n.action,
+    }));
+  }
+
+  // Daily plan
+  async getDailyPlan(): Promise<DailyPlanResponse> {
+    const response: AxiosResponse<any> = await this.client.post('/recommendations/daily-plan');
+    return {
+      plan: (response.data.plan || []).map((item: any) => ({
+        taskId: item.task_id,
+        taskTitle: item.task_title,
+        suggestedTime: item.suggested_time,
+        reason: item.reason,
+        estimatedDurationMin: item.estimated_duration_min,
+      })),
+      summary: response.data.summary,
+    };
+  }
+
+  // ── Task Actions ──────────────────────────────────────────────────
+
+  async getTaskActions(taskId: string): Promise<TaskAction[]> {
+    const resp: AxiosResponse<any> = await this.client.get(`/tasks/${taskId}/actions`);
+    return (resp.data.actions || []).map((a: any) => ({
+      id: a.id,
+      taskId: a.task_id,
+      type: a.type,
+      label: a.label,
+      status: a.status,
+      orderIndex: a.order_index,
+      metadata: a.metadata || {},
+      assignedTo: a.assigned_to,
+      dueDate: a.due_date,
+      completedAt: a.completed_at,
+      createdAt: a.created_at,
+    })) as TaskAction[];
+  }
+
+  async generateTaskActions(taskId: string): Promise<TaskAction[]> {
+    const resp: AxiosResponse<any> = await this.client.post(`/tasks/${taskId}/actions/generate`);
+    return (resp.data.actions || []).map((a: any) => ({
+      id: a.id,
+      taskId: a.task_id,
+      type: a.type,
+      label: a.label,
+      status: a.status,
+      orderIndex: a.order_index,
+      metadata: a.metadata || {},
+      assignedTo: a.assigned_to,
+      dueDate: a.due_date,
+      completedAt: a.completed_at,
+      createdAt: a.created_at,
+    })) as TaskAction[];
+  }
+
+  async updateTaskAction(
+    taskId: string,
+    actionId: string,
+    updates: { status?: string; metadataUpdates?: Record<string, any> }
+  ): Promise<TaskAction> {
+    const resp: AxiosResponse<any> = await this.client.put(
+      `/tasks/${taskId}/actions/${actionId}`,
+      {
+        action_id: actionId,
+        status: updates.status,
+        metadata_updates: updates.metadataUpdates || {},
+      }
+    );
+    const a = resp.data.action;
+    return {
+      id: a.id,
+      taskId: a.task_id,
+      type: a.type,
+      label: a.label,
+      status: a.status,
+      orderIndex: a.order_index,
+      metadata: a.metadata || {},
+      assignedTo: a.assigned_to,
+      dueDate: a.due_date,
+      completedAt: a.completed_at,
+      createdAt: a.created_at,
+    };
+  }
+
+  // ── Task Attachments ──────────────────────────────────────────────
+
+  async getTaskAttachments(taskId: string): Promise<TaskAttachment[]> {
+    const resp: AxiosResponse<any> = await this.client.get(`/tasks/${taskId}/attachments`);
+    return (resp.data.attachments || []).map((a: any) => ({
+      id: a.id,
+      taskId: a.task_id,
+      type: a.type,
+      url: a.url,
+      thumbnailUrl: a.thumbnail_url,
+      caption: a.caption,
+      createdAt: a.created_at,
+    })) as TaskAttachment[];
+  }
+
+  async addTaskAttachment(taskId: string, attachment: Partial<TaskAttachment>): Promise<TaskAttachment> {
+    const resp: AxiosResponse<any> = await this.client.post(`/tasks/${taskId}/attachments`, {
+      task_id: taskId,
+      type: attachment.type || 'image',
+      url: attachment.url,
+      thumbnail_url: attachment.thumbnailUrl,
+      caption: attachment.caption,
+    });
+    const a = resp.data;
+    return {
+      id: a.id, taskId: a.task_id, type: a.type,
+      url: a.url, thumbnailUrl: a.thumbnail_url,
+      caption: a.caption, createdAt: a.created_at,
+    };
+  }
+
+  // ── Household ─────────────────────────────────────────────────────
+
+  async getHousehold(): Promise<HouseholdResponse> {
+    const resp: AxiosResponse<any> = await this.client.get('/household');
+    return {
+      members: (resp.data.members || []).map((m: any) => ({
+        id: m.id, userId: m.user_id, name: m.name, role: m.role,
+        skills: m.skills || [], availability: m.availability || {},
+        contact: m.contact, isExternal: m.is_external,
+      })),
+      providers: (resp.data.providers || []).map((p: any) => ({
+        id: p.id, userId: p.user_id, name: p.name, serviceType: p.service_type,
+        phone: p.phone, email: p.email, address: p.address,
+        notes: p.notes, rating: p.rating,
+      })),
+    };
+  }
+
+  async addHouseholdMember(member: Partial<HouseholdMember>): Promise<HouseholdMember> {
+    const resp: AxiosResponse<any> = await this.client.post('/household/members', {
+      name: member.name, role: member.role || 'parent',
+      skills: member.skills || [], availability: member.availability || {},
+      contact: member.contact, is_external: member.isExternal || false,
+    });
+    const m = resp.data;
+    return { id: m.id, userId: m.user_id, name: m.name, role: m.role,
+      skills: m.skills || [], availability: m.availability || {},
+      contact: m.contact, isExternal: m.is_external };
+  }
+
+  async removeHouseholdMember(memberId: string): Promise<void> {
+    await this.client.delete(`/household/members/${memberId}`);
+  }
+
+  async addServiceProvider(provider: Partial<ExternalProvider>): Promise<ExternalProvider> {
+    const resp: AxiosResponse<any> = await this.client.post('/household/providers', {
+      name: provider.name, service_type: provider.serviceType,
+      phone: provider.phone, email: provider.email,
+      address: provider.address, notes: provider.notes, rating: provider.rating,
+    });
+    const p = resp.data;
+    return { id: p.id, userId: p.user_id, name: p.name, serviceType: p.service_type,
+      phone: p.phone, email: p.email, address: p.address,
+      notes: p.notes, rating: p.rating };
+  }
+
+  async removeServiceProvider(providerId: string): Promise<void> {
+    await this.client.delete(`/household/providers/${providerId}`);
+  }
+
+  // ── Recurring Templates ───────────────────────────────────────────
+
+  async getRecurringTemplates(): Promise<RecurringTemplate[]> {
+    const resp: AxiosResponse<any> = await this.client.get('/recurring-templates');
+    return (resp.data.templates || []).map((t: any) => ({
+      id: t.id, userId: t.user_id, title: t.title, domain: t.domain,
+      frequency: t.frequency, cronExpression: t.cron_expression,
+      defaultActions: t.default_actions || [], lastGenerated: t.last_generated,
+      nextDue: t.next_due, active: t.active,
+    }));
+  }
+
+  async createRecurringTemplate(template: Partial<RecurringTemplate>): Promise<RecurringTemplate> {
+    const resp: AxiosResponse<any> = await this.client.post('/recurring-templates', {
+      title: template.title, domain: template.domain || 'home',
+      frequency: template.frequency || 'weekly',
+      cron_expression: template.cronExpression,
+      default_actions: template.defaultActions || [],
+      next_due: template.nextDue, active: template.active ?? true,
+    });
+    const t = resp.data;
+    return { id: t.id, userId: t.user_id, title: t.title, domain: t.domain,
+      frequency: t.frequency, cronExpression: t.cron_expression,
+      defaultActions: t.default_actions || [], lastGenerated: t.last_generated,
+      nextDue: t.next_due, active: t.active };
   }
 
   // Email

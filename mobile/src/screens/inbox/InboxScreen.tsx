@@ -20,6 +20,7 @@ import { colors, spacing, typography, useTheme } from '../../theme/theme';
 import Screen from '../../components/Screen';
 import Card from '../../components/Card';
 import EmptyState from '../../components/EmptyState';
+import FloatingMenu from '../../components/FloatingMenu';
 import { useTasks, useTaskList, useTaskLoading } from '../../stores/TaskStore';
 import type { RootStackParamList, Task, TaskStatus } from '../../types';
 
@@ -126,6 +127,20 @@ const InboxScreen: React.FC = () => {
                 {item.priority.toLowerCase()}
               </Text>
             )}
+
+            {item.estimatedDurationMin != null && item.estimatedDurationMin > 0 && (
+              <View style={styles.durationBadge}>
+                <MaterialIcons name="schedule" size={11} color={colors.gray[500]} />
+                <Text
+                  style={[
+                    styles.durationText,
+                    { fontFamily: theme.typography.fontFamily.regular },
+                  ]}
+                >
+                  ~{item.estimatedDurationMin} min
+                </Text>
+              </View>
+            )}
           </View>
         </Card>
       </TouchableOpacity>
@@ -169,6 +184,7 @@ const InboxScreen: React.FC = () => {
           <RefreshControl refreshing={isLoading} onRefresh={refreshTasks} />
         }
       />
+      <FloatingMenu />
     </Screen>
   );
 };
@@ -240,6 +256,15 @@ const styles = StyleSheet.create({
   priorityLabel: {
     fontSize: typography.sizes.xs,
     color: colors.gray[400],
+  },
+  durationBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  durationText: {
+    fontSize: typography.sizes.xs,
+    color: colors.gray[500],
   },
 });
 

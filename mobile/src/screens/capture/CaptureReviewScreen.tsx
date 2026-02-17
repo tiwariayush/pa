@@ -10,7 +10,6 @@ import {
   StyleSheet,
   FlatList,
   ActivityIndicator,
-  Alert,
   ScrollView,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -22,6 +21,7 @@ import Screen from '../../components/Screen';
 import Card from '../../components/Card';
 import PrimaryButton from '../../components/PrimaryButton';
 import { useTasks } from '../../stores/TaskStore';
+import { useToast } from '../../components/Toast';
 import type { ParsedTaskOutput, RootStackParamList } from '../../types';
 
 type CaptureReviewRoute = RouteProp<RootStackParamList, 'CaptureReview'>;
@@ -31,6 +31,7 @@ const CaptureReviewScreen: React.FC = () => {
   const route = useRoute<CaptureReviewRoute>();
   const navigation = useNavigation<CaptureReviewNav>();
   const theme = useTheme();
+  const toast = useToast();
   const { refreshTasks } = useTasks();
 
   const { captureResult } = route.params;
@@ -46,12 +47,12 @@ const CaptureReviewScreen: React.FC = () => {
       setIsSaving(true);
       await refreshTasks();
       setIsSaving(false);
-      Alert.alert('Saved', 'Your captured tasks are now available in your task list.');
+      toast.success('Your captured tasks are now available in your task list.');
       navigation.navigate('Main');
     } catch (error: any) {
       console.error('Failed to save tasks from capture', error);
       setIsSaving(false);
-      Alert.alert('Error', error.message || 'Could not save tasks. Please try again.');
+      toast.error(error.message || 'Could not save tasks. Please try again.');
     }
   }, [captureResult.tasks, navigation, refreshTasks]);
 

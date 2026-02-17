@@ -13,6 +13,8 @@ import sys
 
 from shared.schemas import (
     Task, SubTask, User, Project, CalendarEvent,
+    TaskAction, TaskActionType, TaskActionStatus,
+    TaskAttachment, HouseholdMember, ExternalProvider, RecurringTemplate,
     TaskStatus, TaskDomain, Priority
 )
 
@@ -156,6 +158,74 @@ class DatabaseService:
             error TEXT,
             created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
         );
+
+        -- Task actions (typed workflow steps)
+        CREATE TABLE IF NOT EXISTS task_actions (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            task_id UUID NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+            type VARCHAR(50) NOT NULL,
+            label VARCHAR(500) NOT NULL,
+            status VARCHAR(50) NOT NULL DEFAULT 'pending',
+            order_index INTEGER DEFAULT 0,
+            metadata JSONB DEFAULT '{}',
+            assigned_to VARCHAR(255),
+            due_date DATE,
+            completed_at TIMESTAMP WITH TIME ZONE,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        );
+
+        -- Task attachments (images, documents, links)
+        CREATE TABLE IF NOT EXISTS task_attachments (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            task_id UUID NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+            type VARCHAR(50) NOT NULL DEFAULT 'image',
+            url TEXT NOT NULL,
+            thumbnail_url TEXT,
+            caption TEXT,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        );
+
+        -- Household members
+        CREATE TABLE IF NOT EXISTS household_members (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            name VARCHAR(255) NOT NULL,
+            role VARCHAR(50) DEFAULT 'parent',
+            skills JSONB DEFAULT '[]',
+            availability JSONB DEFAULT '{}',
+            contact VARCHAR(255),
+            is_external BOOLEAN DEFAULT FALSE,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        );
+
+        -- Service providers (external: plumber, pediatrician, etc.)
+        CREATE TABLE IF NOT EXISTS service_providers (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            name VARCHAR(255) NOT NULL,
+            service_type VARCHAR(100) NOT NULL,
+            phone VARCHAR(50),
+            email VARCHAR(255),
+            address TEXT,
+            notes TEXT,
+            rating INTEGER CHECK (rating >= 1 AND rating <= 5),
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        );
+
+        -- Recurring task templates
+        CREATE TABLE IF NOT EXISTS recurring_templates (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            title VARCHAR(500) NOT NULL,
+            domain VARCHAR(50) NOT NULL DEFAULT 'home',
+            frequency VARCHAR(50) NOT NULL DEFAULT 'weekly',
+            cron_expression VARCHAR(100),
+            default_actions JSONB DEFAULT '[]',
+            last_generated TIMESTAMP WITH TIME ZONE,
+            next_due TIMESTAMP WITH TIME ZONE,
+            active BOOLEAN DEFAULT TRUE,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        );
         
         -- Indexes for performance
         CREATE INDEX IF NOT EXISTS idx_tasks_user_id ON tasks(user_id);
@@ -168,6 +238,13 @@ class DatabaseService:
         CREATE INDEX IF NOT EXISTS idx_events_time_range ON events_cache(start_time, end_time);
         CREATE INDEX IF NOT EXISTS idx_ai_logs_user_id ON ai_logs(user_id);
         CREATE INDEX IF NOT EXISTS idx_ai_logs_agent_type ON ai_logs(agent_type);
+        CREATE INDEX IF NOT EXISTS idx_task_actions_task_id ON task_actions(task_id);
+        CREATE INDEX IF NOT EXISTS idx_task_actions_status ON task_actions(status);
+        CREATE INDEX IF NOT EXISTS idx_task_attachments_task_id ON task_attachments(task_id);
+        CREATE INDEX IF NOT EXISTS idx_household_members_user_id ON household_members(user_id);
+        CREATE INDEX IF NOT EXISTS idx_service_providers_user_id ON service_providers(user_id);
+        CREATE INDEX IF NOT EXISTS idx_recurring_templates_user_id ON recurring_templates(user_id);
+        CREATE INDEX IF NOT EXISTS idx_recurring_templates_next_due ON recurring_templates(next_due);
         """
         
         async with cls._pool.acquire() as conn:
@@ -458,6 +535,156 @@ class DatabaseService:
                 json.dumps(output_payload),
                 execution_time_ms, error)
     
+    # Task Actions operations
+    async def save_task_action(self, action: TaskAction) -> TaskAction:
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow("""
+                INSERT INTO task_actions (id, task_id, type, label, status, order_index, metadata, assigned_to, due_date, completed_at)
+                VALUES (COALESCE($1::uuid, gen_random_uuid()), $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                ON CONFLICT (id) DO UPDATE SET
+                    label = EXCLUDED.label,
+                    status = EXCLUDED.status,
+                    order_index = EXCLUDED.order_index,
+                    metadata = EXCLUDED.metadata,
+                    assigned_to = EXCLUDED.assigned_to,
+                    due_date = EXCLUDED.due_date,
+                    completed_at = EXCLUDED.completed_at
+                RETURNING *
+            """, action.id, action.task_id, action.type.value, action.label,
+                action.status.value, action.order_index, json.dumps(action.metadata),
+                action.assigned_to, action.due_date, action.completed_at)
+            return self._row_to_task_action(row)
+
+    async def get_task_actions(self, task_id: str) -> List[TaskAction]:
+        async with self._pool.acquire() as conn:
+            rows = await conn.fetch(
+                "SELECT * FROM task_actions WHERE task_id = $1 ORDER BY order_index",
+                task_id
+            )
+            return [self._row_to_task_action(r) for r in rows]
+
+    async def get_task_action(self, action_id: str) -> Optional[TaskAction]:
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow("SELECT * FROM task_actions WHERE id = $1", action_id)
+            return self._row_to_task_action(row) if row else None
+
+    async def delete_task_action(self, action_id: str) -> bool:
+        async with self._pool.acquire() as conn:
+            result = await conn.execute("DELETE FROM task_actions WHERE id = $1", action_id)
+            return result.split()[-1] == "1"
+
+    # Task Attachments operations
+    async def save_task_attachment(self, attachment: TaskAttachment) -> TaskAttachment:
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow("""
+                INSERT INTO task_attachments (task_id, type, url, thumbnail_url, caption)
+                VALUES ($1, $2, $3, $4, $5)
+                RETURNING *
+            """, attachment.task_id, attachment.type, attachment.url,
+                attachment.thumbnail_url, attachment.caption)
+            return self._row_to_task_attachment(row)
+
+    async def get_task_attachments(self, task_id: str) -> List[TaskAttachment]:
+        async with self._pool.acquire() as conn:
+            rows = await conn.fetch(
+                "SELECT * FROM task_attachments WHERE task_id = $1 ORDER BY created_at",
+                task_id
+            )
+            return [self._row_to_task_attachment(r) for r in rows]
+
+    async def delete_task_attachment(self, attachment_id: str) -> bool:
+        async with self._pool.acquire() as conn:
+            result = await conn.execute("DELETE FROM task_attachments WHERE id = $1", attachment_id)
+            return result.split()[-1] == "1"
+
+    # Household Members operations
+    async def save_household_member(self, member: HouseholdMember) -> HouseholdMember:
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow("""
+                INSERT INTO household_members (user_id, name, role, skills, availability, contact, is_external)
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
+                RETURNING *
+            """, member.user_id, member.name, member.role,
+                json.dumps(member.skills), json.dumps(member.availability),
+                member.contact, member.is_external)
+            return self._row_to_household_member(row)
+
+    async def get_household_members(self, user_id: str) -> List[HouseholdMember]:
+        async with self._pool.acquire() as conn:
+            rows = await conn.fetch(
+                "SELECT * FROM household_members WHERE user_id = $1 ORDER BY name",
+                user_id
+            )
+            return [self._row_to_household_member(r) for r in rows]
+
+    async def delete_household_member(self, member_id: str) -> bool:
+        async with self._pool.acquire() as conn:
+            result = await conn.execute("DELETE FROM household_members WHERE id = $1", member_id)
+            return result.split()[-1] == "1"
+
+    # Service Providers operations
+    async def save_service_provider(self, provider: ExternalProvider) -> ExternalProvider:
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow("""
+                INSERT INTO service_providers (user_id, name, service_type, phone, email, address, notes, rating)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                RETURNING *
+            """, provider.user_id, provider.name, provider.service_type,
+                provider.phone, provider.email, provider.address,
+                provider.notes, provider.rating)
+            return self._row_to_external_provider(row)
+
+    async def get_service_providers(self, user_id: str) -> List[ExternalProvider]:
+        async with self._pool.acquire() as conn:
+            rows = await conn.fetch(
+                "SELECT * FROM service_providers WHERE user_id = $1 ORDER BY service_type, name",
+                user_id
+            )
+            return [self._row_to_external_provider(r) for r in rows]
+
+    async def delete_service_provider(self, provider_id: str) -> bool:
+        async with self._pool.acquire() as conn:
+            result = await conn.execute("DELETE FROM service_providers WHERE id = $1", provider_id)
+            return result.split()[-1] == "1"
+
+    # Recurring Templates operations
+    async def save_recurring_template(self, template: RecurringTemplate) -> RecurringTemplate:
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow("""
+                INSERT INTO recurring_templates (user_id, title, domain, frequency, cron_expression, default_actions, last_generated, next_due, active)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                RETURNING *
+            """, template.user_id, template.title, template.domain.value,
+                template.frequency, template.cron_expression,
+                json.dumps(template.default_actions),
+                template.last_generated, template.next_due, template.active)
+            return self._row_to_recurring_template(row)
+
+    async def get_recurring_templates(self, user_id: str) -> List[RecurringTemplate]:
+        async with self._pool.acquire() as conn:
+            rows = await conn.fetch(
+                "SELECT * FROM recurring_templates WHERE user_id = $1 AND active = TRUE ORDER BY next_due",
+                user_id
+            )
+            return [self._row_to_recurring_template(r) for r in rows]
+
+    async def update_recurring_template(self, template_id: str, updates: dict) -> Optional[RecurringTemplate]:
+        async with self._pool.acquire() as conn:
+            # Build SET clause dynamically
+            set_parts = []
+            params = []
+            idx = 1
+            for key, val in updates.items():
+                set_parts.append(f"{key} = ${idx}")
+                params.append(json.dumps(val) if isinstance(val, (dict, list)) else val)
+                idx += 1
+            if not set_parts:
+                return None
+            params.append(template_id)
+            query = f"UPDATE recurring_templates SET {', '.join(set_parts)} WHERE id = ${idx} RETURNING *"
+            row = await conn.fetchrow(query, *params)
+            return self._row_to_recurring_template(row) if row else None
+
     # Helper methods for row conversion
     def _row_to_user(self, row) -> User:
         """Convert database row to User object"""
@@ -542,4 +769,92 @@ class DatabaseService:
             description=row['description'],
             location=row['location'],
             is_all_day=row['is_all_day']
+        )
+
+    def _row_to_task_action(self, row) -> TaskAction:
+        def _ensure_dict(value):
+            if value is None: return {}
+            if isinstance(value, dict): return value
+            try: return json.loads(value)
+            except: return {}
+        return TaskAction(
+            id=str(row['id']),
+            task_id=str(row['task_id']),
+            type=TaskActionType(row['type']),
+            label=row['label'],
+            status=TaskActionStatus(row['status']),
+            order_index=row['order_index'],
+            metadata=_ensure_dict(row['metadata']),
+            assigned_to=row['assigned_to'],
+            due_date=row['due_date'],
+            completed_at=row['completed_at'],
+            created_at=row['created_at'],
+        )
+
+    def _row_to_task_attachment(self, row) -> TaskAttachment:
+        return TaskAttachment(
+            id=str(row['id']),
+            task_id=str(row['task_id']),
+            type=row['type'],
+            url=row['url'],
+            thumbnail_url=row['thumbnail_url'],
+            caption=row['caption'],
+            created_at=row['created_at'],
+        )
+
+    def _row_to_household_member(self, row) -> HouseholdMember:
+        def _ensure_list(v):
+            if v is None: return []
+            if isinstance(v, list): return v
+            try: return json.loads(v)
+            except: return []
+        def _ensure_dict(v):
+            if v is None: return {}
+            if isinstance(v, dict): return v
+            try: return json.loads(v)
+            except: return {}
+        return HouseholdMember(
+            id=str(row['id']),
+            user_id=str(row['user_id']),
+            name=row['name'],
+            role=row['role'],
+            skills=_ensure_list(row['skills']),
+            availability=_ensure_dict(row['availability']),
+            contact=row['contact'],
+            is_external=row['is_external'],
+            created_at=row['created_at'],
+        )
+
+    def _row_to_external_provider(self, row) -> ExternalProvider:
+        return ExternalProvider(
+            id=str(row['id']),
+            user_id=str(row['user_id']),
+            name=row['name'],
+            service_type=row['service_type'],
+            phone=row['phone'],
+            email=row['email'],
+            address=row['address'],
+            notes=row['notes'],
+            rating=row['rating'],
+            created_at=row['created_at'],
+        )
+
+    def _row_to_recurring_template(self, row) -> RecurringTemplate:
+        def _ensure_list(v):
+            if v is None: return []
+            if isinstance(v, list): return v
+            try: return json.loads(v)
+            except: return []
+        return RecurringTemplate(
+            id=str(row['id']),
+            user_id=str(row['user_id']),
+            title=row['title'],
+            domain=TaskDomain(row['domain']),
+            frequency=row['frequency'],
+            cron_expression=row['cron_expression'],
+            default_actions=_ensure_list(row['default_actions']),
+            last_generated=row['last_generated'],
+            next_due=row['next_due'],
+            active=row['active'],
+            created_at=row['created_at'],
         )

@@ -12,7 +12,6 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  Alert,
   TouchableOpacity,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -21,10 +20,12 @@ import { useAuth } from '../../stores/AuthStore';
 import { colors, spacing, typography, shadows, useTheme } from '../../theme/theme';
 import Screen from '../../components/Screen';
 import PrimaryButton from '../../components/PrimaryButton';
+import { useToast } from '../../components/Toast';
 
 const LoginScreen: React.FC = () => {
   const { login, register, isLoading } = useAuth();
   const theme = useTheme();
+  const toast = useToast();
 
   const [isLoginMode, setIsLoginMode] = useState(true);
   const [email, setEmail] = useState('');
@@ -36,12 +37,12 @@ const LoginScreen: React.FC = () => {
     console.log('[Login] handleSubmit called', { email, isLoginMode });
 
     if (!email.trim() || !password.trim()) {
-      Alert.alert('Error', 'Please fill in all fields');
+      toast.error('Please fill in all fields');
       return;
     }
 
     if (!isLoginMode && !name.trim()) {
-      Alert.alert('Error', 'Please enter your name');
+      toast.error('Please enter your name');
       return;
     }
 
@@ -60,7 +61,7 @@ const LoginScreen: React.FC = () => {
       console.log('[Login] success');
     } catch (error: any) {
       console.error('[Login] error:', error);
-      Alert.alert('Error', error.message || 'Authentication failed');
+      toast.error(error.message || 'Authentication failed');
     }
   };
 

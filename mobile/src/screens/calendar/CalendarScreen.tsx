@@ -12,7 +12,6 @@ import {
   ActivityIndicator,
   RefreshControl,
   TouchableOpacity,
-  Alert,
   SectionList,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -20,9 +19,11 @@ import { colors, spacing, typography, useTheme } from '../../theme/theme';
 import Screen from '../../components/Screen';
 import Card from '../../components/Card';
 import EmptyState from '../../components/EmptyState';
+import FloatingMenu from '../../components/FloatingMenu';
 import { apiService } from '../../services/api';
 import type { CalendarEvent } from '../../types';
 import { useTasks } from '../../stores/TaskStore';
+import { useToast } from '../../components/Toast';
 
 /** Format a date as "Mon, Jan 15" */
 const formatDateHeader = (dateStr: string): string => {
@@ -61,6 +62,7 @@ interface EventSection {
 
 const CalendarScreen: React.FC = () => {
   const theme = useTheme();
+  const toast = useToast();
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -123,9 +125,9 @@ const CalendarScreen: React.FC = () => {
       try {
         await apiService.importCalendarEventAsTask(event.id);
         await refreshTasks();
-        Alert.alert('Added', 'This calendar event is now in your task list.');
+        toast.success('This calendar event is now in your task list.');
       } catch (e: any) {
-        Alert.alert('Error', e.message || 'Failed to create a task from this event.');
+        toast.error(e.message || 'Failed to create a task from this event.');
       }
     },
     [refreshTasks]
@@ -331,6 +333,7 @@ const CalendarScreen: React.FC = () => {
           }
         />
       )}
+      <FloatingMenu />
     </Screen>
   );
 };

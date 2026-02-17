@@ -43,6 +43,29 @@ class AgentType(str, Enum):
     EMAIL = "email"
     RESEARCH = "research"
     REFLECTION = "reflection"
+    WORKFLOW = "workflow"
+
+
+class TaskActionType(str, Enum):
+    RESEARCH = "research"
+    PURCHASE = "purchase"
+    EMAIL = "email"
+    CALL = "call"
+    BOOK = "book"
+    DELEGATE = "delegate"
+    SCHEDULE = "schedule"
+    REMIND = "remind"
+    TRACK = "track"
+    DECIDE = "decide"
+    PHOTO = "photo"
+    CHECKLIST = "checklist"
+
+
+class TaskActionStatus(str, Enum):
+    PENDING = "pending"
+    IN_PROGRESS = "in_progress"
+    DONE = "done"
+    SKIPPED = "skipped"
 
 
 # Core Data Models
@@ -94,6 +117,7 @@ class User(BaseModel):
     name: str
     email: str
     time_zone: str = "UTC"
+    household_members: List[str] = []  # Names of household members for delegation
     default_work_hours: Dict[str, Any] = {
         "monday": {"start": "09:00", "end": "18:00"},
         "tuesday": {"start": "09:00", "end": "18:00"},
@@ -109,6 +133,84 @@ class User(BaseModel):
         "weekend": {"start": "08:00", "end": "20:00"}
     }
     preferences: Dict[str, Any] = {}
+
+
+# Task Action System
+class TaskAction(BaseModel):
+    id: Optional[str] = None
+    task_id: Optional[str] = None
+    type: TaskActionType
+    label: str
+    status: TaskActionStatus = TaskActionStatus.PENDING
+    order_index: int = 0
+    metadata: Dict[str, Any] = {}
+    assigned_to: Optional[str] = None
+    due_date: Optional[date] = None
+    completed_at: Optional[datetime] = None
+    created_at: Optional[datetime] = None
+
+
+class DecisionOption(BaseModel):
+    title: str
+    description: str
+    image_url: Optional[str] = None
+    price: Optional[str] = None
+    rating: Optional[float] = None
+    pros: List[str] = []
+    cons: List[str] = []
+    url: Optional[str] = None
+    recommended: bool = False
+
+
+class TaskAttachment(BaseModel):
+    id: Optional[str] = None
+    task_id: str
+    type: str = "image"  # image, document, link
+    url: str
+    thumbnail_url: Optional[str] = None
+    caption: Optional[str] = None
+    created_at: Optional[datetime] = None
+
+
+# Household & Delegation Models
+class HouseholdMember(BaseModel):
+    id: Optional[str] = None
+    user_id: Optional[str] = None
+    name: str
+    role: str = "parent"  # parent, partner, nanny, grandparent, other
+    skills: List[str] = []  # cooking, tech, handyman, medical, errands, childcare
+    availability: Dict[str, Any] = {}
+    contact: Optional[str] = None
+    is_external: bool = False
+    created_at: Optional[datetime] = None
+
+
+class ExternalProvider(BaseModel):
+    id: Optional[str] = None
+    user_id: Optional[str] = None
+    name: str
+    service_type: str  # pediatrician, plumber, cleaner, babysitter, dentist, etc.
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    address: Optional[str] = None
+    notes: Optional[str] = None
+    rating: Optional[int] = None  # 1-5
+    created_at: Optional[datetime] = None
+
+
+# Recurring Templates
+class RecurringTemplate(BaseModel):
+    id: Optional[str] = None
+    user_id: Optional[str] = None
+    title: str
+    domain: TaskDomain = TaskDomain.HOME
+    frequency: str = "weekly"  # daily, weekly, biweekly, monthly, custom
+    cron_expression: Optional[str] = None
+    default_actions: List[Dict[str, Any]] = []  # Serialized TaskAction templates
+    last_generated: Optional[datetime] = None
+    next_due: Optional[datetime] = None
+    active: bool = True
+    created_at: Optional[datetime] = None
 
 
 class CalendarEvent(BaseModel):
@@ -269,6 +371,7 @@ class ResearchOption(BaseModel):
     price_range: Optional[str] = None
     rating: Optional[float] = None
     url: Optional[str] = None
+    image_url: Optional[str] = None
 
 
 class ResearchResponse(BaseModel):
@@ -276,6 +379,75 @@ class ResearchResponse(BaseModel):
     summary: str
     recommendation: Optional[str] = None
     sources: List[str] = []
+
+
+# Nudge models
+class NudgeType(str, Enum):
+    DUE_SOON = "due_soon"
+    OVERDUE = "overdue"
+    SUGGESTION = "suggestion"
+    REMINDER = "reminder"
+
+
+class Nudge(BaseModel):
+    type: NudgeType
+    message: str
+    task_id: Optional[str] = None
+    action: Optional[str] = None  # e.g. "view_task", "start_task"
+
+
+class NudgesResponse(BaseModel):
+    nudges: List[Nudge]
+
+
+# Daily Plan models
+class DailyPlanItem(BaseModel):
+    task_id: str
+    task_title: str
+    suggested_time: str  # ISO time string
+    reason: str
+    estimated_duration_min: int = 30
+
+
+class DailyPlanResponse(BaseModel):
+    plan: List[DailyPlanItem]
+    summary: str
+
+
+# Workflow Agent Models
+class WorkflowAgentOutput(BaseModel):
+    """Output from the WorkflowAgent that decomposes a task into typed actions."""
+    actions: List[TaskAction]
+    reasoning: str = ""
+
+
+class ActionExecuteRequest(BaseModel):
+    """Request to execute or update a specific action on a task."""
+    action_id: str
+    status: Optional[TaskActionStatus] = None
+    metadata_updates: Dict[str, Any] = {}
+
+
+class ActionExecuteResponse(BaseModel):
+    action: TaskAction
+    side_effects: List[str] = []  # e.g. ["Created calendar event", "Email drafted"]
+
+
+class TaskActionsResponse(BaseModel):
+    actions: List[TaskAction]
+
+
+class TaskAttachmentsResponse(BaseModel):
+    attachments: List[TaskAttachment]
+
+
+class HouseholdResponse(BaseModel):
+    members: List[HouseholdMember]
+    providers: List[ExternalProvider]
+
+
+class RecurringTemplatesResponse(BaseModel):
+    templates: List[RecurringTemplate]
 
 
 # Auth request models (for frontend / mobile clients)

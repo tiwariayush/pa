@@ -9,6 +9,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 
 import Screen from '../../components/Screen';
 import Card from '../../components/Card';
+import FloatingMenu from '../../components/FloatingMenu';
 import { useThemeStore, FontTheme, BackgroundTheme } from '../../stores/ThemeStore';
 import { fontThemes, backgroundThemes } from '../../theme/themes';
 import { colors, spacing, typography, useTheme } from '../../theme/theme';
@@ -209,6 +210,7 @@ const SettingsScreen: React.FC = () => {
           </View>
         </Card>
       </ScrollView>
+      <FloatingMenu />
     </Screen>
   );
 };

@@ -11,7 +11,6 @@ import {
   Text,
   StyleSheet,
   ActivityIndicator,
-  Alert,
   TouchableOpacity,
   TextInput,
   ScrollView,
@@ -29,6 +28,7 @@ import Screen from '../../components/Screen';
 import Card from '../../components/Card';
 import PrimaryButton from '../../components/PrimaryButton';
 import { useTasks } from '../../stores/TaskStore';
+import { useToast } from '../../components/Toast';
 import type { RootStackParamList } from '../../types';
 
 type VoiceCaptureNav = StackNavigationProp<RootStackParamList, 'VoiceCapture'>;
@@ -36,6 +36,7 @@ type VoiceCaptureNav = StackNavigationProp<RootStackParamList, 'VoiceCapture'>;
 const VoiceCaptureScreen: React.FC = () => {
   const navigation = useNavigation<VoiceCaptureNav>();
   const theme = useTheme();
+  const toast = useToast();
   const { processVoiceCapture } = useTasks();
 
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
@@ -48,10 +49,7 @@ const VoiceCaptureScreen: React.FC = () => {
     try {
       const permission = await Audio.requestPermissionsAsync();
       if (!permission.granted) {
-        Alert.alert(
-          'Microphone access needed',
-          'Please enable microphone access to capture voice.'
-        );
+        toast.error('Please enable microphone access to capture voice.');
         return;
       }
 
@@ -67,7 +65,7 @@ const VoiceCaptureScreen: React.FC = () => {
       setIsRecording(true);
     } catch (error: any) {
       console.error('Failed to start recording', error);
-      Alert.alert('Error', 'Could not start recording. Please try again.');
+      toast.error('Could not start recording. Please try again.');
     }
   }, []);
 
@@ -82,7 +80,7 @@ const VoiceCaptureScreen: React.FC = () => {
       console.log('[VoiceCapture] Recording URI:', uri);
 
       if (!uri) {
-        Alert.alert('Error', 'No audio data found. Please try again.');
+        toast.error('No audio data found. Please try again.');
         return;
       }
 
@@ -106,7 +104,7 @@ const VoiceCaptureScreen: React.FC = () => {
       console.error('Failed to process voice capture', error);
       setIsProcessing(false);
       setRecording(null);
-      Alert.alert('Error', error.message || 'Voice capture failed. Please try again.');
+      toast.error(error.message || 'Voice capture failed. Please try again.');
     }
   }, [navigation, processVoiceCapture, recording]);
 
@@ -121,7 +119,7 @@ const VoiceCaptureScreen: React.FC = () => {
   const handleTextSubmit = useCallback(async () => {
     const trimmed = manualText.trim();
     if (!trimmed) {
-      Alert.alert('Nothing to capture', 'Type a thought or task before submitting.');
+      toast.info('Type a thought or task before submitting.');
       return;
     }
 
@@ -139,7 +137,7 @@ const VoiceCaptureScreen: React.FC = () => {
     } catch (error: any) {
       console.error('Failed to process typed capture', error);
       setIsSubmittingText(false);
-      Alert.alert('Error', error.message || 'Could not process your text. Please try again.');
+      toast.error(error.message || 'Could not process your text. Please try again.');
     }
   }, [manualText, navigation, processVoiceCapture]);
 

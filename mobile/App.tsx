@@ -11,6 +11,7 @@ import { AuthProvider } from './src/stores/AuthStore';
 import { TaskProvider } from './src/stores/TaskStore';
 import { useThemeStore } from './src/stores/ThemeStore';
 import { theme } from './src/theme/theme';
+import { ToastProvider } from './src/components/Toast';
 
 export default function App() {
   const initializeTheme = useThemeStore((state) => state.initialize);
@@ -76,8 +77,10 @@ export default function App() {
         <NavigationContainer>
           <AuthProvider>
             <TaskProvider>
-              <AppNavigator />
-              <StatusBar style="auto" />
+              <ToastProvider>
+                <AppNavigator />
+                <StatusBar style="auto" />
+              </ToastProvider>
             </TaskProvider>
           </AuthProvider>
         </NavigationContainer>

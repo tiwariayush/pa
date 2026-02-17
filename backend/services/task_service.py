@@ -17,6 +17,13 @@ from shared.schemas import (
     TaskUpdateRequest,
     TaskListRequest,
     TaskListResponse,
+    TaskAction,
+    TaskActionType,
+    TaskActionStatus,
+    TaskAttachment,
+    HouseholdMember,
+    ExternalProvider,
+    RecurringTemplate,
     TaskStatus,
     TaskDomain,
     Priority,
@@ -339,6 +346,186 @@ class TaskService:
         
         return True
     
+    # ── Task Actions ──────────────────────────────────────────────────
+    async def add_actions_to_task(self, task_id: str, actions: List[TaskAction]) -> List[TaskAction]:
+        """Save a list of actions for a task."""
+        saved = []
+        for action in actions:
+            action.task_id = task_id
+            action.id = action.id or str(uuid.uuid4())
+            result = await self.db.save_task_action(action)
+            saved.append(result)
+        return saved
+
+    async def get_task_actions(self, task_id: str) -> List[TaskAction]:
+        return await self.db.get_task_actions(task_id)
+
+    async def update_action(self, action_id: str, updates: dict) -> Optional[TaskAction]:
+        action = await self.db.get_task_action(action_id)
+        if not action:
+            return None
+        for k, v in updates.items():
+            if hasattr(action, k):
+                setattr(action, k, v)
+        if updates.get("status") == TaskActionStatus.DONE.value or updates.get("status") == TaskActionStatus.DONE:
+            action.status = TaskActionStatus.DONE
+            action.completed_at = datetime.now()
+        return await self.db.save_task_action(action)
+
+    # ── Attachments ──────────────────────────────────────────────────
+    async def add_attachment(self, attachment: TaskAttachment) -> TaskAttachment:
+        return await self.db.save_task_attachment(attachment)
+
+    async def get_task_attachments(self, task_id: str) -> List[TaskAttachment]:
+        return await self.db.get_task_attachments(task_id)
+
+    async def delete_attachment(self, attachment_id: str) -> bool:
+        return await self.db.delete_task_attachment(attachment_id)
+
+    # ── Household ────────────────────────────────────────────────────
+    async def add_household_member(self, member: HouseholdMember) -> HouseholdMember:
+        return await self.db.save_household_member(member)
+
+    async def get_household_members(self, user_id: str) -> List[HouseholdMember]:
+        return await self.db.get_household_members(user_id)
+
+    async def delete_household_member(self, member_id: str) -> bool:
+        return await self.db.delete_household_member(member_id)
+
+    # ── Service Providers ────────────────────────────────────────────
+    async def add_service_provider(self, provider: ExternalProvider) -> ExternalProvider:
+        return await self.db.save_service_provider(provider)
+
+    async def get_service_providers(self, user_id: str) -> List[ExternalProvider]:
+        return await self.db.get_service_providers(user_id)
+
+    async def delete_service_provider(self, provider_id: str) -> bool:
+        return await self.db.delete_service_provider(provider_id)
+
+    # ── Recurring Templates ──────────────────────────────────────────
+    async def add_recurring_template(self, template: RecurringTemplate) -> RecurringTemplate:
+        return await self.db.save_recurring_template(template)
+
+    async def get_recurring_templates(self, user_id: str) -> List[RecurringTemplate]:
+        return await self.db.get_recurring_templates(user_id)
+
+    async def update_recurring_template(self, template_id: str, updates: dict) -> Optional[RecurringTemplate]:
+        return await self.db.update_recurring_template(template_id, updates)
+
+    # ── Pre-built Recurring Templates ────────────────────────────────
+    def get_default_toddler_templates(self) -> list[dict]:
+        """Return pre-built recurring template definitions for a family with toddlers."""
+        return [
+            {
+                "title": "Weekly grocery run",
+                "domain": "home",
+                "frequency": "weekly",
+                "default_actions": [
+                    {"type": "checklist", "label": "Review meal plan for the week"},
+                    {"type": "checklist", "label": "Check pantry and fridge for staples"},
+                    {"type": "checklist", "label": "Add baby food and toddler snacks"},
+                    {"type": "purchase", "label": "Shop for groceries", "metadata": {"estimated_price": "$100-150"}},
+                ],
+            },
+            {
+                "title": "Diaper & wipes restock check",
+                "domain": "family",
+                "frequency": "biweekly",
+                "default_actions": [
+                    {"type": "checklist", "label": "Count remaining diaper supply"},
+                    {"type": "checklist", "label": "Check wipes, cream, and bags stock"},
+                    {"type": "purchase", "label": "Order diapers and wipes if running low"},
+                ],
+            },
+            {
+                "title": "Pediatrician well-visit",
+                "domain": "family",
+                "frequency": "custom",
+                "cron_expression": None,  # manually triggered per CDC schedule
+                "default_actions": [
+                    {"type": "book", "label": "Schedule pediatrician appointment", "metadata": {"provider_name": "Pediatrician"}},
+                    {"type": "checklist", "label": "Prepare questions and concerns list"},
+                    {"type": "checklist", "label": "Bring vaccination record"},
+                    {"type": "schedule", "label": "Block calendar for appointment", "metadata": {"duration_min": 90}},
+                ],
+            },
+            {
+                "title": "House cleaning",
+                "domain": "home",
+                "frequency": "weekly",
+                "default_actions": [
+                    {"type": "delegate", "label": "Assign cleaning areas to household members"},
+                    {"type": "checklist", "label": "Kitchen deep clean"},
+                    {"type": "checklist", "label": "Bathrooms"},
+                    {"type": "checklist", "label": "Vacuum and mop floors"},
+                    {"type": "checklist", "label": "Laundry - wash, fold, put away"},
+                ],
+            },
+            {
+                "title": "Weekly meal prep",
+                "domain": "home",
+                "frequency": "weekly",
+                "default_actions": [
+                    {"type": "research", "label": "Find age-appropriate toddler meal ideas", "metadata": {"query": "easy toddler meals for the week"}},
+                    {"type": "checklist", "label": "Prep and batch cook toddler meals"},
+                    {"type": "checklist", "label": "Portion and label containers"},
+                    {"type": "checklist", "label": "Prep adult lunches for the week"},
+                ],
+            },
+            {
+                "title": "Baby-proofing audit",
+                "domain": "family",
+                "frequency": "monthly",
+                "default_actions": [
+                    {"type": "checklist", "label": "Check all outlet covers are secure"},
+                    {"type": "checklist", "label": "Test cabinet and drawer locks"},
+                    {"type": "checklist", "label": "Verify baby gates are tight"},
+                    {"type": "checklist", "label": "Move new hazards out of reach"},
+                    {"type": "checklist", "label": "Check smoke and CO detectors"},
+                ],
+            },
+            {
+                "title": "Seasonal clothing size check",
+                "domain": "family",
+                "frequency": "monthly",
+                "default_actions": [
+                    {"type": "checklist", "label": "Try current clothes on each child"},
+                    {"type": "research", "label": "Research next-size-up options", "metadata": {"query": "toddler clothing deals"}},
+                    {"type": "purchase", "label": "Order new clothes if needed"},
+                    {"type": "delegate", "label": "Sort and donate outgrown clothes"},
+                ],
+            },
+            {
+                "title": "Car seat safety check",
+                "domain": "family",
+                "frequency": "custom",
+                "default_actions": [
+                    {"type": "checklist", "label": "Check harness height and tightness"},
+                    {"type": "checklist", "label": "Verify car seat is not expired"},
+                    {"type": "checklist", "label": "Check for recalls on current model"},
+                    {"type": "research", "label": "Research if child has outgrown current seat", "metadata": {"query": "car seat weight and height limits"}},
+                ],
+            },
+        ]
+
+    async def seed_default_templates(self, user_id: str) -> list[RecurringTemplate]:
+        """Seed a user's account with pre-built toddler family templates."""
+        templates_data = self.get_default_toddler_templates()
+        created = []
+        for tdata in templates_data:
+            template = RecurringTemplate(
+                user_id=user_id,
+                title=tdata["title"],
+                domain=TaskDomain(tdata["domain"]),
+                frequency=tdata["frequency"],
+                cron_expression=tdata.get("cron_expression"),
+                default_actions=tdata.get("default_actions", []),
+                active=True,
+            )
+            saved = await self.db.save_recurring_template(template)
+            created.append(saved)
+        return created
+
     # Priority calculation methods
     def _calculate_priority_score(
         self,

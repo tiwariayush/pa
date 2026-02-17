@@ -9,11 +9,13 @@ import { ActivityIndicator, View } from 'react-native';
 
 import { RootStackParamList } from '../types';
 import { useAuthLoading, useIsAuthenticated } from '../stores/AuthStore';
-import MainTabNavigator from './MainTabNavigator';
+import MainStackNavigator from './MainStackNavigator';
 import LoginScreen from '../screens/auth/LoginScreen';
 import TaskDetailScreen from '../screens/tasks/TaskDetailScreen';
+import DecisionScreen from '../screens/tasks/DecisionScreen';
 import VoiceCaptureScreen from '../screens/capture/VoiceCaptureScreen';
 import CaptureReviewScreen from '../screens/capture/CaptureReviewScreen';
+import HouseholdScreen from '../screens/household/HouseholdScreen';
 
 const Stack = createStackNavigator<RootStackParamList>();
 
@@ -47,7 +49,7 @@ const AppNavigator: React.FC = () => {
         <>
           <Stack.Screen 
             name="Main" 
-            component={MainTabNavigator}
+            component={MainStackNavigator}
           />
           <Stack.Screen 
             name="TaskDetail" 
@@ -73,6 +75,24 @@ const AppNavigator: React.FC = () => {
             options={{
               headerShown: true,
               title: 'Review Capture',
+              presentation: 'modal',
+            }}
+          />
+          <Stack.Screen 
+            name={'DecisionView' as any}
+            component={DecisionScreen}
+            options={{
+              headerShown: true,
+              title: 'Compare Options',
+              presentation: 'modal',
+            }}
+          />
+          <Stack.Screen 
+            name="Household" 
+            component={HouseholdScreen}
+            options={{
+              headerShown: true,
+              title: 'My Household',
               presentation: 'modal',
             }}
           />

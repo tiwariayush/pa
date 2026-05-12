@@ -4,6 +4,7 @@
 
 import axios, { AxiosInstance, AxiosResponse } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 import {
   Task,
   User,
@@ -38,18 +39,22 @@ class APIService {
     /**
      * Base URL resolution
      *
-     * - Prefer EXPO_PUBLIC_API_URL when defined (Expo public env var)
+     * - Web: Use empty string (same origin via Nginx proxy)
+     * - Native (iOS/Android): Use EXPO_PUBLIC_API_URL for LAN IP
      * - Fallback to localhost:8000 for simulator / local dev
-     *
-     * NOTE: If you run the app on a physical device, set EXPO_PUBLIC_API_URL
-     * to your machine's LAN IP, e.g. http://192.168.1.10:8000
      */
     const envBaseUrl = process.env.EXPO_PUBLIC_API_URL;
 
-    this.baseURL =
-      (envBaseUrl && envBaseUrl.trim().length > 0
-        ? envBaseUrl.trim()
-        : 'http://localhost:8000');
+    if (Platform.OS === 'web') {
+      // Web browser - use same origin (Nginx proxies /auth, /tasks, etc. to backend)
+      this.baseURL = '';
+    } else if (envBaseUrl && envBaseUrl.trim().length > 0) {
+      // Native device with env var - use LAN IP
+      this.baseURL = envBaseUrl.trim();
+    } else {
+      // Fallback for simulator
+      this.baseURL = 'http://localhost:8000';
+    }
 
     this.client = axios.create({
       baseURL: this.baseURL,

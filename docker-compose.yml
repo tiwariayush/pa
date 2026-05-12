@@ -87,7 +87,7 @@ services:
       start_period: 40s
     restart: unless-stopped
 
-  # Nginx Load Balancer (optional for development)
+  # Nginx - serves frontend and proxies API
   nginx:
     image: nginx:alpine
     container_name: pa-nginx
@@ -95,6 +95,7 @@ services:
       - "80:80"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./mobile/dist:/usr/share/nginx/html:ro
     depends_on:
       - backend
     restart: unless-stopped

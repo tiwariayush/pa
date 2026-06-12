@@ -2,6 +2,26 @@
 
 Complete deployment guide for the Personal Assistant system in production.
 
+## Production Hosting: Vultr
+
+This project is hosted on **Vultr**, alongside the rest of the personal
+projects, using the shared `VULTR_API_KEY`. The full stack (PostgreSQL,
+Redis, FastAPI backend, Nginx) runs on a single VPS via Docker Compose.
+
+```bash
+export VULTR_API_KEY=...           # same key as the other projects
+./deploy/vultr/provision.sh        # create (or find) the server
+SERVER_IP=<ip> ./deploy/vultr/deploy.sh   # build + start the stack
+```
+
+See [`deploy/vultr/README.md`](deploy/vultr/README.md) for the complete
+walkthrough, GitHub Actions auto-deploy setup, and operations commands.
+The production compose file is [`docker-compose.prod.yml`](docker-compose.prod.yml)
+with environment defined by [`env.production.template`](env.production.template).
+
+Everything below this section is generic reference material for alternative
+setups (Kubernetes, managed databases, etc.) and is not what is deployed.
+
 ## Architecture Overview
 
 ```

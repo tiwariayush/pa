@@ -1,0 +1,31 @@
+name: Deploy to Vultr
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-vultr
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # Requires repository secrets:
+    #   VULTR_HOST            - server IP from deploy/vultr/provision.sh
+    #   VULTR_SSH_PRIVATE_KEY - private key matching the key registered on the server
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VULTR_SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "${{ secrets.VULTR_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Deploy
+        env:
+          SERVER_IP: ${{ secrets.VULTR_HOST }}
+        run: ./deploy/vultr/deploy.sh

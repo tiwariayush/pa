@@ -26,6 +26,7 @@ expo-debug.log
 .env.*
 *.env.local
 core-dominion-477510-i7-3f438f4fca77.json
+secrets/
 
 # Build / cache
 dist/

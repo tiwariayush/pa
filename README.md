@@ -96,6 +96,20 @@ See individual README files for detailed setup instructions:
 - [`mobile/README.md`](mobile/README.md) - Mobile app setup and development
 - [`DEPLOYMENT.md`](DEPLOYMENT.md) - Production deployment guide
 
+## Hosting
+
+Production runs on **Vultr** (same place and API key as the other personal
+projects): a single VPS running the whole stack with Docker Compose.
+
+```bash
+export VULTR_API_KEY=...
+./deploy/vultr/provision.sh                 # one-time server creation
+SERVER_IP=<ip> ./deploy/vultr/deploy.sh     # deploy / redeploy
+```
+
+See [`deploy/vultr/README.md`](deploy/vultr/README.md) for details and
+auto-deploy via GitHub Actions.
+
 ## Development Phases
 
 1. **Phase 1**: Core capture & task management

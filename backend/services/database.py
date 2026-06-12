@@ -248,7 +248,14 @@ class DatabaseService:
         """
         
         async with cls._pool.acquire() as conn:
-            await conn.execute(create_tables_sql)
+            # Advisory lock so concurrent workers (uvicorn --workers N) don't
+            # race on CREATE TABLE IF NOT EXISTS, which can fail with a
+            # pg_type unique-constraint error when run in parallel.
+            await conn.execute("SELECT pg_advisory_lock(727274001)")
+            try:
+                await conn.execute(create_tables_sql)
+            finally:
+                await conn.execute("SELECT pg_advisory_unlock(727274001)")
     
     # User operations
     async def create_user(self, user: User) -> User:
